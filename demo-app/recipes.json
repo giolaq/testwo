@@ -1,0 +1,357 @@
+[
+  {
+    "id": "golden-oat-porridge",
+    "title": "Golden Oat Porridge",
+    "description": "Creamy oats simmered with turmeric, cinnamon and a spoonful of maple for a warm start to the day.",
+    "category": "Breakfast",
+    "dietary_tags": ["Vegetarian"],
+    "prep_minutes": 5,
+    "cook_minutes": 10,
+    "difficulty": "Easy",
+    "servings": 2,
+    "ingredients": [
+      "100g rolled oats",
+      "400ml whole milk",
+      "1/2 tsp ground turmeric",
+      "1/2 tsp ground cinnamon",
+      "2 tbsp maple syrup",
+      "2 tbsp toasted flaked almonds"
+    ],
+    "steps": [
+      "Tip the oats, milk, turmeric and cinnamon into a small pan and set over a medium heat.",
+      "Stir often for 8 to 10 minutes until the oats are soft and the porridge falls slowly from the spoon.",
+      "Sweeten with the maple syrup and taste, adding a splash more milk if you prefer it looser.",
+      "Spoon into bowls and finish with the toasted almonds."
+    ],
+    "colors": ["#E9B44C", "#C9472D"],
+    "featured": true
+  },
+  {
+    "id": "herb-garden-omelette",
+    "title": "Herb Garden Omelette",
+    "description": "A soft three-egg omelette folded around parsley, chives and a little melting cheese.",
+    "category": "Breakfast",
+    "dietary_tags": ["Vegetarian", "Gluten-Free"],
+    "prep_minutes": 5,
+    "cook_minutes": 6,
+    "difficulty": "Easy",
+    "servings": 1,
+    "ingredients": [
+      "3 eggs",
+      "1 tbsp chopped parsley",
+      "1 tbsp snipped chives",
+      "15g butter",
+      "20g grated hard cheese",
+      "Salt and black pepper"
+    ],
+    "steps": [
+      "Beat the eggs with a pinch of salt and plenty of pepper until the yolks and whites are one colour.",
+      "Melt the butter in a small non-stick pan over a medium heat until it foams.",
+      "Pour in the eggs and draw the setting edges into the centre for about two minutes.",
+      "Scatter over the herbs and cheese, fold the omelette in half and slide it onto a warm plate."
+    ],
+    "colors": ["#3F6B4F", "#E9B44C"],
+    "featured": false
+  },
+  {
+    "id": "sunrise-berry-smoothie-bowl",
+    "title": "Sunrise Berry Smoothie Bowl",
+    "description": "Frozen berries and banana blitzed thick enough to eat with a spoon, then piled with seeds.",
+    "category": "Breakfast",
+    "dietary_tags": ["Vegan", "Gluten-Free"],
+    "prep_minutes": 10,
+    "cook_minutes": 0,
+    "difficulty": "Easy",
+    "servings": 2,
+    "ingredients": [
+      "300g frozen mixed berries",
+      "1 frozen banana, broken into chunks",
+      "150ml oat milk",
+      "1 tbsp almond butter",
+      "2 tbsp pumpkin seeds",
+      "1 tbsp desiccated coconut"
+    ],
+    "steps": [
+      "Put the frozen berries, banana, oat milk and almond butter into a blender.",
+      "Blend in short bursts, scraping down the sides, until the mixture is thick and scoopable rather than pourable.",
+      "Divide between two bowls and smooth the tops with the back of a spoon.",
+      "Finish with the pumpkin seeds and coconut and eat straight away while still frozen."
+    ],
+    "colors": ["#C9472D", "#E9B44C"],
+    "featured": true
+  },
+  {
+    "id": "lemon-chickpea-salad",
+    "title": "Lemon Chickpea Salad",
+    "description": "Chickpeas tossed with cucumber, red onion and a bright lemon and olive oil dressing.",
+    "category": "Lunch",
+    "dietary_tags": ["Vegan", "Gluten-Free"],
+    "prep_minutes": 15,
+    "cook_minutes": 0,
+    "difficulty": "Easy",
+    "servings": 2,
+    "ingredients": [
+      "400g tin chickpeas, drained and rinsed",
+      "1/2 cucumber, diced",
+      "1/2 small red onion, finely sliced",
+      "Handful of flat-leaf parsley, chopped",
+      "Juice of 1 lemon",
+      "3 tbsp olive oil",
+      "Salt and black pepper"
+    ],
+    "steps": [
+      "Whisk the lemon juice, olive oil, a good pinch of salt and plenty of pepper in a large bowl.",
+      "Add the chickpeas and turn them through the dressing so they soak it up while you chop.",
+      "Fold in the cucumber, red onion and parsley.",
+      "Leave to sit for five minutes, then taste and add more lemon or salt before serving."
+    ],
+    "colors": ["#E9B44C", "#3F6B4F"],
+    "featured": false
+  },
+  {
+    "id": "tomato-basil-toastie",
+    "title": "Tomato and Basil Toastie",
+    "description": "A crisp buttered toastie with sweet tomatoes, torn basil and stretchy mozzarella.",
+    "category": "Lunch",
+    "dietary_tags": ["Vegetarian"],
+    "prep_minutes": 8,
+    "cook_minutes": 7,
+    "difficulty": "Easy",
+    "servings": 1,
+    "ingredients": [
+      "2 thick slices of sourdough",
+      "1 ripe tomato, sliced",
+      "60g mozzarella, torn",
+      "6 basil leaves",
+      "15g softened butter",
+      "Salt and black pepper"
+    ],
+    "steps": [
+      "Butter the outside face of each slice of bread so it will crisp in the pan.",
+      "Layer the tomato, mozzarella and basil onto the unbuttered side of one slice and season well.",
+      "Close the sandwich and cook in a dry pan over a medium heat for three minutes until golden.",
+      "Press, flip and cook the second side until the cheese has melted, then cut in half and eat hot."
+    ],
+    "colors": ["#C9472D", "#3F6B4F"],
+    "featured": false
+  },
+  {
+    "id": "smoked-paprika-chicken-wraps",
+    "title": "Smoked Paprika Chicken Wraps",
+    "description": "Strips of paprika-rubbed chicken with charred peppers and a cooling yoghurt drizzle.",
+    "category": "Lunch",
+    "dietary_tags": [],
+    "prep_minutes": 15,
+    "cook_minutes": 12,
+    "difficulty": "Medium",
+    "servings": 4,
+    "ingredients": [
+      "400g chicken thigh fillets, sliced",
+      "2 tsp smoked paprika",
+      "1 red pepper, sliced",
+      "1 tbsp olive oil",
+      "4 large flour tortillas",
+      "150g natural yoghurt",
+      "Juice of 1/2 lime"
+    ],
+    "steps": [
+      "Toss the chicken with the smoked paprika, olive oil and a good pinch of salt.",
+      "Fry over a high heat for six minutes without moving it much so the strips colour deeply.",
+      "Add the pepper and cook for a further five minutes until softened and lightly charred.",
+      "Stir the lime juice into the yoghurt, warm the tortillas and build the wraps with chicken, pepper and drizzle."
+    ],
+    "colors": ["#C9472D", "#26231F"],
+    "featured": false
+  },
+  {
+    "id": "slow-simmered-lentil-stew",
+    "title": "Slow-Simmered Lentil Stew",
+    "description": "A hearty pot of green lentils and root vegetables cooked down until thick and glossy.",
+    "category": "Dinner",
+    "dietary_tags": ["Vegan"],
+    "prep_minutes": 15,
+    "cook_minutes": 40,
+    "difficulty": "Medium",
+    "servings": 4,
+    "ingredients": [
+      "250g dried green lentils, rinsed",
+      "2 carrots, diced",
+      "2 celery sticks, diced",
+      "1 onion, diced",
+      "2 garlic cloves, crushed",
+      "1 tbsp tomato puree",
+      "1 litre vegetable stock",
+      "2 tbsp olive oil"
+    ],
+    "steps": [
+      "Soften the onion, carrot and celery in the olive oil over a low heat for ten minutes.",
+      "Stir in the garlic and tomato puree and cook for a minute until it smells sweet rather than sharp.",
+      "Add the lentils and stock, bring to a simmer and cook uncovered for thirty minutes.",
+      "Mash a ladleful against the side of the pan to thicken the stew, then season generously and serve."
+    ],
+    "colors": ["#3F6B4F", "#26231F"],
+    "featured": true
+  },
+  {
+    "id": "weeknight-salmon-traybake",
+    "title": "Weeknight Salmon Traybake",
+    "description": "Salmon fillets roasted over new potatoes and green beans with lemon and dill.",
+    "category": "Dinner",
+    "dietary_tags": ["Gluten-Free"],
+    "prep_minutes": 10,
+    "cook_minutes": 25,
+    "difficulty": "Easy",
+    "servings": 2,
+    "ingredients": [
+      "2 salmon fillets",
+      "400g new potatoes, halved",
+      "200g green beans, trimmed",
+      "1 lemon, half sliced and half for juice",
+      "2 tbsp olive oil",
+      "1 tbsp chopped dill"
+    ],
+    "steps": [
+      "Heat the oven to 200C and toss the potatoes with half the olive oil and plenty of salt in a roasting tray.",
+      "Roast for fifteen minutes until the cut sides are starting to crisp.",
+      "Add the beans, nestle in the salmon, top with lemon slices and the remaining oil.",
+      "Return to the oven for ten minutes until the salmon flakes, then finish with dill and lemon juice."
+    ],
+    "colors": ["#E9B44C", "#26231F"],
+    "featured": false
+  },
+  {
+    "id": "mushroom-barley-risotto",
+    "title": "Mushroom Barley Risotto",
+    "description": "Pearl barley stirred slowly with mushrooms and thyme into a nutty, savoury risotto.",
+    "category": "Dinner",
+    "dietary_tags": ["Vegetarian"],
+    "prep_minutes": 15,
+    "cook_minutes": 35,
+    "difficulty": "Confident Cook",
+    "servings": 4,
+    "ingredients": [
+      "250g pearl barley",
+      "400g chestnut mushrooms, sliced",
+      "1 onion, finely chopped",
+      "2 sprigs thyme, leaves picked",
+      "1.2 litres hot vegetable stock",
+      "40g butter",
+      "40g grated hard cheese"
+    ],
+    "steps": [
+      "Fry the mushrooms in half the butter over a high heat until deeply browned, then set them aside.",
+      "Soften the onion in the remaining butter, add the barley and thyme and toast for two minutes.",
+      "Add the hot stock a ladleful at a time, stirring, for about thirty minutes until the barley is tender but chewy.",
+      "Fold the mushrooms and cheese back in, rest for two minutes off the heat and serve loose rather than stiff."
+    ],
+    "colors": ["#26231F", "#E9B44C"],
+    "featured": false
+  },
+  {
+    "id": "spiced-butternut-curry",
+    "title": "Spiced Butternut Curry",
+    "description": "Butternut squash simmered in coconut milk with ginger, cumin and a handful of spinach.",
+    "category": "Dinner",
+    "dietary_tags": ["Vegan", "Gluten-Free"],
+    "prep_minutes": 20,
+    "cook_minutes": 30,
+    "difficulty": "Medium",
+    "servings": 4,
+    "ingredients": [
+      "1 butternut squash, peeled and cubed",
+      "400ml tin coconut milk",
+      "1 onion, sliced",
+      "20g fresh ginger, grated",
+      "2 tsp ground cumin",
+      "1 tsp ground coriander",
+      "150g spinach",
+      "1 tbsp coconut oil"
+    ],
+    "steps": [
+      "Soften the onion in the coconut oil for eight minutes, then stir in the ginger and ground spices.",
+      "Add the squash and turn it through the spice paste until every piece is coated.",
+      "Pour in the coconut milk, half fill the tin with water and add that too, then simmer for twenty minutes.",
+      "Stir the spinach through in handfuls until it wilts, season well and serve with rice."
+    ],
+    "colors": ["#E9B44C", "#3F6B4F"],
+    "featured": false
+  },
+  {
+    "id": "dark-chocolate-mousse",
+    "title": "Dark Chocolate Mousse",
+    "description": "A light set mousse made with dark chocolate and whipped egg whites, chilled until airy.",
+    "category": "Dessert",
+    "dietary_tags": ["Vegetarian", "Gluten-Free"],
+    "prep_minutes": 20,
+    "cook_minutes": 5,
+    "difficulty": "Confident Cook",
+    "servings": 4,
+    "ingredients": [
+      "150g dark chocolate, chopped",
+      "3 eggs, separated",
+      "30g caster sugar",
+      "20g butter",
+      "Pinch of salt"
+    ],
+    "steps": [
+      "Melt the chocolate and butter together in a bowl set over barely simmering water, then cool for five minutes.",
+      "Beat the egg yolks into the warm chocolate one at a time until the mixture is thick and shiny.",
+      "Whisk the whites with the salt to soft peaks, add the sugar and whisk to a firm glossy meringue.",
+      "Fold the meringue into the chocolate in three additions, keeping the air in, then chill for four hours."
+    ],
+    "colors": ["#26231F", "#C9472D"],
+    "featured": true
+  },
+  {
+    "id": "honey-roast-plums",
+    "title": "Honey Roast Plums",
+    "description": "Halved plums roasted with honey and vanilla until they collapse into their own syrup.",
+    "category": "Dessert",
+    "dietary_tags": ["Vegetarian", "Gluten-Free"],
+    "prep_minutes": 10,
+    "cook_minutes": 20,
+    "difficulty": "Easy",
+    "servings": 4,
+    "ingredients": [
+      "8 ripe plums, halved and stoned",
+      "3 tbsp runny honey",
+      "1 tsp vanilla extract",
+      "1 strip of orange peel",
+      "200g thick yoghurt to serve"
+    ],
+    "steps": [
+      "Heat the oven to 190C and sit the plums cut side up in a snug baking dish.",
+      "Spoon over the honey and vanilla and tuck the orange peel between the fruit.",
+      "Roast for twenty minutes, basting once, until the plums are soft and sitting in a dark syrup.",
+      "Serve warm with the yoghurt and the syrup spooned from the dish."
+    ],
+    "colors": ["#C9472D", "#E9B44C"],
+    "featured": false
+  },
+  {
+    "id": "no-bake-peanut-oat-bars",
+    "title": "No-Bake Peanut Oat Bars",
+    "description": "Chewy oat and peanut butter bars pressed into a tin and set in the fridge, no oven needed.",
+    "category": "Dessert",
+    "dietary_tags": ["Vegan"],
+    "prep_minutes": 15,
+    "cook_minutes": 0,
+    "difficulty": "Easy",
+    "servings": 8,
+    "ingredients": [
+      "200g rolled oats",
+      "150g smooth peanut butter",
+      "100g maple syrup",
+      "50g dark chocolate chips",
+      "Pinch of sea salt"
+    ],
+    "steps": [
+      "Warm the peanut butter and maple syrup together and stir until they pour smoothly from the spoon.",
+      "Mix in the oats and salt until every oat is coated, then let the mixture cool for five minutes.",
+      "Stir through the chocolate chips and press the mixture very firmly into a lined tin.",
+      "Chill for at least two hours before cutting into eight bars."
+    ],
+    "colors": ["#E9B44C", "#26231F"],
+    "featured": false
+  }
+]
