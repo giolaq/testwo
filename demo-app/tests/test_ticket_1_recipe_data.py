@@ -3,22 +3,27 @@
 Scope is limited to the ticket's own files:
   demo-app/recipes.json, demo-app/recipe_data.py, demo-app/recipe_search.py
 
-Imports of the ticket's modules are deliberately lazy so that a missing module
-surfaces as a behaviour assertion failure rather than an uncollectable file.
+Imports of the ticket's modules are deliberately lazy and are guarded by a file
+existence assertion first, so a missing module surfaces as a plain behaviour
+assertion failure and never as an ImportError from this file.
 """
 
 from __future__ import annotations
 
 import copy
-import importlib
+import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
 
 DEMO_APP = Path(__file__).parents[1]
 FIXTURE_PATH = DEMO_APP / "recipes.json"
+
+if str(DEMO_APP) not in sys.path:
+    sys.path.insert(0, str(DEMO_APP))
 
 RECIPE_FIELDS = (
     "id",
@@ -48,12 +53,16 @@ CSS_COLOR = re.compile(
 # lazy access helpers
 # --------------------------------------------------------------------------- #
 def _module(name: str):
-    try:
-        return importlib.import_module(name)
-    except ImportError as exc:  # pragma: no cover - failure path is the point
-        raise AssertionError(
-            f"ticket #1 requires demo-app/{name}.py to be importable: {exc}"
-        ) from exc
+    source = DEMO_APP / f"{name}.py"
+    assert source.is_file(), f"ticket #1 requires demo-app/{name}.py"
+    module = sys.modules.get(name)
+    if module is not None and getattr(module, "__file__", None) == str(source):
+        return module
+    spec = importlib.util.spec_from_file_location(name, source)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def _attr(module_name: str, attr: str):
@@ -122,6 +131,16 @@ def test_two_consecutive_loads_return_identical_ordering_and_content():
     second, _ = _collection_parts(_load_recipes())
     assert [r["id"] for r in first] == [r["id"] for r in second]
     assert [dict(r) for r in first] == [dict(r) for r in second]
+
+
+def test_loader_reads_local_files_only_with_no_network_or_environment_access():
+    source = DEMO_APP / "recipe_data.py"
+    assert source.is_file(), "ticket #1 requires demo-app/recipe_data.py"
+    text = source.read_text()
+    for forbidden in ("requests", "urllib", "http.client", "socket", "os.environ", "getenv"):
+        assert forbidden not in text, (
+            f"recipe_data.py must load local files only; found {forbidden!r}"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -450,8 +469,11 @@ def test_total_minutes_is_prep_plus_cook_including_a_zero_cook_recipe():
 
 
 def test_search_module_stays_free_of_flask():
-    source = (DEMO_APP / "recipe_search.py")
+    source = DEMO_APP / "recipe_search.py"
     assert source.is_file(), "ticket #1 requires demo-app/recipe_search.py"
-    assert "flask" not in source.read_text().casefold(), (
+    imports_flask = re.search(
+        r"^\s*(?:import\s+flask|from\s+flask\b)", source.read_text(), re.IGNORECASE | re.MULTILINE
+    )
+    assert imports_flask is None, (
         "recipe_search.py must contain only pure helpers with no web framework import"
     )
