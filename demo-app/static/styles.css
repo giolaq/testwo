@@ -721,7 +721,22 @@ main {
     padding: var(--space-4) var(--space-5);
   }
 
-  /* Stronger ring and the highest-contrast palette colour for TV distance. */
+  /* Stronger ring and the highest-contrast palette colour for TV distance.
+
+     TV focus is moved programmatically: the remote handlers call .focus() and an
+     initial card is focused on load. Engines only match :focus-visible on a
+     script-focused element when it takes keyboard text input or the last
+     interaction was a key press, so a page-load or Enter-navigation focus would
+     otherwise carry no ring at all. :focus is therefore matched alongside
+     :focus-visible in the TV layer only, so R33 does not depend on that
+     heuristic. The mobile layer above stays :focus-visible-only so pointer
+     users still get no ring on click. The 18px .rail-track padding already
+     clears a 6px ring at a 6px offset. */
+  a:focus,
+  button:focus,
+  input:focus,
+  summary:focus,
+  [tabindex]:focus,
   a:focus-visible,
   button:focus-visible,
   input:focus-visible,
