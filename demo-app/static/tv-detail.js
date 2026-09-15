@@ -10,7 +10,12 @@
 // markup is the contract with resolveDetailKey's focus indices.
 
 import {resolveDetailKey} from './tv-logic.js';
-import {initCookbookControls} from './browse.js';
+// Imported for its module body only: browse.js binds initCookbookControls over
+// the document when it loads, and that single binding owns the My Cookbook
+// control's state on this page too. Nothing here calls it again, because a
+// second binding on the same control would give it two independently-stateful
+// click handlers.
+import './browse.js';
 
 const ACTION_LIST_SELECTOR = '[data-tv-actions]';
 const ACTION_SELECTOR = 'a[href], button';
@@ -29,6 +34,11 @@ function navigate(href) {
  * Returns without binding when no TV action list is rendered - the mobile recipe
  * page and the TV browse page render none - so the module is safe to load
  * anywhere and a stray remote key has nothing to act on.
+ *
+ * Precondition for a caller that passes its own `root`: the My Cookbook control
+ * inside it must already be bound by `initCookbookControls` (from ./browse.js),
+ * exactly once. This function never binds it, so a root that the document-wide
+ * auto-bind cannot reach has to be bound by its caller.
  */
 export function initTvDetail(root = globalThis.document) {
   if (!root || typeof root.querySelector !== 'function') {
@@ -50,6 +60,10 @@ export function initTvDetail(root = globalThis.document) {
       .map((action) => action.getAttribute?.('href'))
       .find((href) => typeof href === 'string' && href) ?? null;
 
+  /** Which action, if any, an event target sits in; -1 when it is outside them. */
+  const indexOfTarget = (target) =>
+    actions.findIndex((action) => action === target || action.contains?.(target));
+
   let focusIndex = 0;
 
   const apply = (next) => {
@@ -68,22 +82,11 @@ export function initTvDetail(root = globalThis.document) {
   // Tab, or a pointer, can move real focus without an arrow key, so the model is
   // resynchronised from whatever actually holds it.
   root.addEventListener('focusin', (event) => {
-    const index = actions.findIndex(
-      (action) => action === event.target || action.contains?.(event.target),
-    );
+    const index = indexOfTarget(event.target);
     if (index !== -1) {
       focusIndex = index;
     }
   });
-
-  // The shared mobile binding owns the My Cookbook control's state, so the TV
-  // control behaves identically to the mobile one and there is exactly one state
-  // machine per control. Importing browse.js already ran initCookbookControls
-  // over the document, so binding the document again here would give the control
-  // two independently-stateful click handlers; only another root still needs it.
-  if (root !== globalThis.document) {
-    initCookbookControls(root);
-  }
 
   root.addEventListener('keydown', (event) => {
     const intent = resolveDetailKey(event.key, focusIndex, actions.length);
@@ -95,10 +98,15 @@ export function initTvDetail(root = globalThis.document) {
     }
 
     if (intent.action === 'activate') {
-      const action = actions[intent.focusIndex];
-      if (!action) {
+      // Activate whatever actually holds focus, not whatever the model last
+      // pointed at. Focus can sit outside the action list - the brand link is
+      // focusable too - and taking over Enter there would replace the user's own
+      // activation with an unrelated action.
+      const index = indexOfTarget(event.target);
+      if (index === -1) {
         return;
       }
+      const action = actions[index];
       // Suppress the browser's own Enter activation so the action runs exactly
       // once, whichever element type holds focus: a link is followed here, and a
       // control is activated through the one click handler that owns its state.
