@@ -28,6 +28,17 @@ def test_browse_renders_one_card_per_recipe(client):
         assert recipe["title"] in html
         assert recipe["difficulty"] in html
         assert str(total_minutes(recipe)) in html
+        # At least one category or dietary label per card (R10).
+        assert any(
+            f'class="recipe-card-label">{label}<' in html
+            for label in (recipe["category"], *recipe["dietary_tags"])
+        ), recipe["id"]
+
+
+def test_every_card_link_opens_a_recipe_page(client):
+    html = client.get("/").get_data(as_text=True)
+    for href in set(re.findall(r'href="(/recipe/[^"]+)"', html)):
+        assert client.get(href).status_code == 200, href
 
 
 def test_browse_navigation_is_browse_only(client):
@@ -95,6 +106,22 @@ def test_api_rails_exposes_recipe_ids(client):
     for rail in rails:
         assert set(rail) == {"name", "recipe_ids"}
         assert set(rail["recipe_ids"]) <= known
+
+
+def test_no_supported_response_exposes_movie_ids(client):
+    recipe_id = _collection().recipes[0]["id"]
+    client.post("/api/cookbook", json={"id": recipe_id})
+    paths = (
+        "/api/recipes",
+        f"/api/recipes/{recipe_id}",
+        "/api/cookbook",
+        "/api/rails",
+        "/",
+        f"/recipe/{recipe_id}",
+    )
+    for path in paths:
+        body = client.get(path).get_data(as_text=True)
+        assert "movie_ids" not in body, path
 
 
 def test_legacy_cinema_routes_are_gone(client):
