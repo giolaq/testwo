@@ -16,7 +16,7 @@
     <a class="brand" href="{{ browse_href }}" aria-label="{{ brand_name }} home">
       <span class="brand-mark" aria-hidden="true">TS</span>{{ brand_name }}
     </a>
-    <p class="tv-tagline">{{ tagline }}</p>
+    <h1 class="tv-tagline">{{ tagline }}</h1>
   </header>
 
   <main class="tv-rails" id="tv-rails">
@@ -35,7 +35,7 @@
               </li>
             {% endfor %}
           </ul>
-        {% else %}
+        {% elif rail.empty_state %}
           <p class="tv-rail-empty">{{ rail.empty_state }}</p>
         {% endif %}
       </section>

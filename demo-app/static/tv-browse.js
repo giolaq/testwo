@@ -46,13 +46,12 @@ export function openFocused(card) {
 
 /** Reuse the shared mobile save-control binding once it is available. */
 async function bindSaveControls(root) {
-  try {
-    const module = await import('./browse.js');
-    if (typeof module.initCookbookControls === 'function') {
-      module.initCookbookControls(root);
-    }
-  } catch {
-    // The shared binding is not present yet; TV focus navigation still works.
+  // Only the resolution of the shared module is optional: it does not exist
+  // until the mobile browse client lands. A failure inside the binding itself
+  // must surface rather than leave TV save controls silently inert.
+  const module = await import('./browse.js').catch(() => null);
+  if (module && typeof module.initCookbookControls === 'function') {
+    module.initCookbookControls(root);
   }
 }
 
@@ -85,6 +84,25 @@ export function initTvBrowse(root = globalThis.document) {
     scrollFocusIntoView(card);
   };
 
+  apply(state);
+
+  /** The card the event happened in, so the model follows real focus. */
+  const cardOf = (target) => target?.closest?.(CARD_SELECTOR) ?? null;
+
+  // Tab can reach a card (or the anchor inside it) without an arrow key, so the
+  // model is resynchronised from whatever actually holds focus.
+  root.addEventListener('focusin', (event) => {
+    const card = cardOf(event.target);
+    if (!card) {
+      return;
+    }
+    const railIndex = Number(card.getAttribute('data-rail-index'));
+    const cardIndex = Number(card.getAttribute('data-card-index'));
+    if (rails[railIndex]?.[cardIndex] === card) {
+      state = {railIndex, cardIndex};
+    }
+  });
+
   root.addEventListener('keydown', (event) => {
     if (HANDLED_KEYS.has(event.key)) {
       event.preventDefault();
@@ -92,12 +110,16 @@ export function initTvBrowse(root = globalThis.document) {
       return;
     }
     if (event.key === 'Enter') {
-      // Let a focused save control handle its own activation.
-      if (event.target?.closest?.('button')) {
+      // Let a focused control or link handle its own native activation.
+      if (event.target?.closest?.('button, a[href]')) {
+        return;
+      }
+      const card = cardOf(event.target) ?? rails[state.railIndex]?.[state.cardIndex];
+      if (!card) {
         return;
       }
       event.preventDefault();
-      openFocused(rails[state.railIndex]?.[state.cardIndex]);
+      openFocused(card);
     }
   });
 
