@@ -105,8 +105,15 @@ export function initTvBrowse(root = globalThis.document) {
 
   root.addEventListener('keydown', (event) => {
     if (HANDLED_KEYS.has(event.key)) {
+      const next = nextFocus(state, railCounts, event.key);
+      // An unchanged result means the model declined the move (clamped edge or
+      // empty destination rail). Leave the browser's default scrolling alone so
+      // content below the last reachable rail stays viewable with a keyboard.
+      if (next.railIndex === state.railIndex && next.cardIndex === state.cardIndex) {
+        return;
+      }
       event.preventDefault();
-      apply(nextFocus(state, railCounts, event.key));
+      apply(next);
       return;
     }
     if (event.key === 'Enter') {
