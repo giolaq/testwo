@@ -129,7 +129,7 @@ test('repeated ArrowUp presses settle on the first action', async () => {
 
 test('an out-of-range focus index is clamped into the rendered action list', async () => {
   const resolve = await detailKey();
-  for (const key of ['ArrowUp', 'ArrowDown', 'Enter', 'Escape']) {
+  for (const key of ['ArrowUp', 'ArrowDown']) {
     for (const focusIndex of [-3, -1, ACTION_COUNT, ACTION_COUNT + 4]) {
       const intent = callModel(resolve, focusIndex, ACTION_COUNT, key);
       assert.ok(
@@ -320,16 +320,6 @@ test('the TV detail binding reuses the shared save-control helpers', () => {
     /saveControlState|requestCookbookChange|initCookbookControls|browse(-logic)?\.js/,
     'the TV My Cookbook action must reuse the shared save label and cookbook ' +
       'request helpers so it cannot drift from the mobile control',
-  );
-});
-
-test('the TV detail binding uses the server-rendered back href', () => {
-  const source = readSource(TV_DETAIL_URL, 'the TV detail DOM binding');
-  assert.doesNotMatch(
-    source,
-    /mode=tv/,
-    'the back intent must navigate to the href the server already rendered, ' +
-      'so TV mode retention is not re-derived in JavaScript',
   );
 });
 

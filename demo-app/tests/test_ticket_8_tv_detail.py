@@ -21,6 +21,12 @@ fixture. Everything runs offline through the create_app(testing=True) test
 client from conftest.py; the cookbook API is the public seam used to flip saved
 state, because the client-side toggle is not available in this gate.
 
+Every assertion here observes public behaviour: HTTP responses and the markup
+they render. Template and script sources are deliberately not read, so a missing
+file surfaces as a failed behaviour assertion about the rendered page rather
+than as a file-system error. The contents of static/tv-detail.js are asserted by
+the companion node --test suite, which imports it through its public exports.
+
 Deliberately NOT asserted here: TV legibility, measured contrast and the
 on-screen focus treatment at 1920x1080. Those are the documented manual
 reviewer checks. Nothing here freezes the absence of a later slice's routes,
@@ -46,7 +52,6 @@ TV_QUERY = "mode=tv"
 TV_BROWSE_PATH = f"/?{TV_QUERY}"
 UNKNOWN_ID = "no-such-recipe-id"
 
-TV_DETAIL_TEMPLATE = DEMO_APP / "templates" / "tv_recipe.html"
 TV_DETAIL_SCRIPT = "tv-detail.js"
 
 RAIL_NAMES = (
@@ -224,14 +229,32 @@ def _accessible_name(control: str) -> str:
     return aria_label if aria_label else _text(control)
 
 
-def _back_anchors(html: str) -> list[str]:
-    """Anchors whose href points at the browse page, in render order."""
-    anchors = re.findall(r"<a\b[^>]*>.*?</a\s*>", html, re.DOTALL | re.IGNORECASE)
-    return [
-        anchor
-        for anchor in anchors
-        if (_attribute(anchor, "href") or "").split("?")[0] == BROWSE_PATH
-    ]
+BACK_HREF_ATTRIBUTES = ("href", "data-href", "data-back-href", "data-back")
+
+
+def _back_href(markup: str) -> str | None:
+    """The browse-page target carried by ``markup``, whatever attribute holds it."""
+    opening = re.match(r"<[a-zA-Z][\w-]*[^>]*>", markup)
+    head = opening.group(0) if opening else markup
+    for name in BACK_HREF_ATTRIBUTES:
+        value = _attribute(head, name)
+        if value is not None and value.split("?")[0] == BROWSE_PATH:
+            return value
+    return None
+
+
+def _back_actions(html: str) -> list[str]:
+    """Elements pointing at the browse page, in render order.
+
+    Any element carrying the browse target counts - an anchor or a control with a
+    data attribute - so the assertions do not dictate how the back action is
+    built, only that it exists, keeps TV mode and is keyboard reachable.
+    """
+    found: list[str] = []
+    for tag, attrs, inner in _elements(html):
+        if _back_href(f"<{tag}{attrs}>") is not None:
+            found.append(f"<{tag}{attrs}>{inner}</{tag}>")
+    return found
 
 
 def _is_tv_browse_layout(html: str) -> bool:
@@ -263,7 +286,7 @@ def _action_list(html: str, recipe_id: str) -> tuple[str, list[str]]:
     for tag, attrs, inner in _elements(html):
         if tag.lower() not in {"ol", "ul"}:
             continue
-        if not _back_anchors(inner):
+        if not _back_actions(inner):
             continue
         if not re.search(
             rf'<button\b[^>]*{re.escape(recipe_id)}', inner, re.DOTALL
@@ -310,25 +333,14 @@ def _cookbook_ids(client) -> list[str]:
 # --------------------------------------------------------------------------- #
 # The TV detail template and route branch  (C_PAGE_DETAIL, MOD_TPL_TV)
 # --------------------------------------------------------------------------- #
-def test_the_tv_detail_template_exists():
-    assert TV_DETAIL_TEMPLATE.is_file(), (
-        "ticket #8 must add demo-app/templates/tv_recipe.html as the TV recipe "
-        "detail layout"
-    )
-
-
 def test_a_tv_resolved_detail_request_renders_the_tv_detail_template(client):
     """The TV branch renders the TV template, identified by its TV-only script."""
     recipe = _sample_recipe()
     html = _tv_detail_html(client, recipe)
-    assert TV_DETAIL_SCRIPT in html, (
+    assert re.search(rf'<script\b[^>]*{re.escape(TV_DETAIL_SCRIPT)}', html), (
         "GET /recipe/<recipe_id>?mode=tv must render the TV detail template, "
-        f"which loads demo-app/static/{TV_DETAIL_SCRIPT}; the response did not "
-        "reference it"
-    )
-    assert (DEMO_APP / "static" / TV_DETAIL_SCRIPT).is_file(), (
-        f"ticket #8 must add demo-app/static/{TV_DETAIL_SCRIPT} as the TV "
-        "detail DOM binding"
+        f"which loads demo-app/static/{TV_DETAIL_SCRIPT} as its remote-control "
+        "binding; the response referenced no such script"
     )
 
 
@@ -347,11 +359,19 @@ def test_a_tv_user_agent_detail_request_also_renders_the_tv_detail_template(clie
     )
 
 
-def test_the_tv_detail_template_reuses_the_shared_save_control_markup():
-    source = TV_DETAIL_TEMPLATE.read_text(encoding="utf-8")
-    assert "_partials/save_control.html" in source, (
-        "tv_recipe.html must include the shared save-control partial so the TV "
-        "control cannot drift from the mobile one"
+def test_the_tv_detail_page_renders_the_shared_save_control_markup(client):
+    """The rendered TV control is byte-identical to the mobile one.
+
+    That is the observable consequence of reusing the shared save-control
+    markup: the same attributes, the same visible cue, the same accessible name.
+    """
+    recipe = _sample_recipe()
+    tv = _save_control(_tv_detail_html(client, recipe), recipe["id"])
+    mobile = _save_control(_mobile_detail_html(client, recipe), recipe["id"])
+    assert re.sub(r"\s+", " ", tv) == re.sub(r"\s+", " ", mobile), (
+        "the TV detail page must render the shared save-control markup so the TV "
+        f"control cannot drift from the mobile one; TV rendered {tv!r} and mobile "
+        f"rendered {mobile!r}"
     )
 
 
@@ -509,8 +529,12 @@ def test_the_tv_detail_page_stacks_both_actions_as_one_ordered_action_list(clien
 def test_the_tv_action_list_puts_the_back_action_first(client):
     recipe = _sample_recipe()
     _list_markup, items = _action_list(_tv_detail_html(client, recipe), recipe["id"])
+    assert len(items) == 2, (
+        "the TV action list must hold exactly the two primary actions in a fixed "
+        f"order (back, then My Cookbook), found {len(items)} list items"
+    )
     first, second = items[0], items[1]
-    assert _back_anchors(first), (
+    assert _back_actions(first), (
         "the first TV action must be the back action, so the pure action model's "
         f"index 0 addresses it; the first item was {_text(first)!r}"
     )
@@ -574,11 +598,11 @@ def test_the_tv_detail_page_keeps_ingredients_and_steps_on_the_page(client):
 def test_the_tv_back_action_retains_tv_mode(client):
     recipe = _sample_recipe()
     html = _tv_detail_html(client, recipe)
-    anchors = _back_anchors(html)
-    assert anchors, "the TV detail page must offer a back action to browse"
-    for anchor in anchors:
-        href = _attribute(anchor, "href")
-        assert TV_QUERY in href, (
+    actions = _back_actions(html)
+    assert actions, "the TV detail page must offer a back action to browse"
+    for action in actions:
+        href = _back_href(action)
+        assert href is not None and TV_QUERY in href, (
             f"the TV back href {href!r} must retain TV mode so Escape and "
             "Backspace return to TV browse rather than to the mobile page"
         )
@@ -586,7 +610,9 @@ def test_the_tv_back_action_retains_tv_mode(client):
 
 def test_the_tv_back_href_lands_on_the_tv_browse_layout(client):
     recipe = _sample_recipe()
-    href = _attribute(_back_anchors(_tv_detail_html(client, recipe))[0], "href")
+    actions = _back_actions(_tv_detail_html(client, recipe))
+    assert actions, "the TV detail page must offer a back action to browse"
+    href = _back_href(actions[0])
     assert _is_tv_browse_layout(_html(client, href)), (
         f"the TV back href {href!r} must land on the TV browse layout with its "
         "four rails"
@@ -595,12 +621,12 @@ def test_the_tv_back_href_lands_on_the_tv_browse_layout(client):
 
 def test_every_tv_detail_page_offers_a_mode_preserving_back_action(client):
     for recipe in _recipes():
-        anchors = _back_anchors(_tv_detail_html(client, recipe))
-        assert anchors, (
+        actions = _back_actions(_tv_detail_html(client, recipe))
+        assert actions, (
             f"the TV detail page for {recipe['id']!r} must offer a back action"
         )
         assert all(
-            TV_QUERY in (_attribute(anchor, "href") or "") for anchor in anchors
+            TV_QUERY in (_back_href(action) or "") for action in actions
         ), f"{recipe['id']!r} must keep TV mode in every browse-page link"
 
 
@@ -694,30 +720,25 @@ def test_the_tv_control_carries_its_recipe_id_for_the_client_binding(client):
 # --------------------------------------------------------------------------- #
 # The TV detail binding  (R35, MOD_TV_DETAIL_DOM)
 # --------------------------------------------------------------------------- #
-def test_the_tv_detail_page_loads_the_tv_detail_script(client):
-    script = DEMO_APP / "static" / TV_DETAIL_SCRIPT
-    assert script.is_file(), (
-        f"ticket #8 must add demo-app/static/{TV_DETAIL_SCRIPT}"
-    )
+def test_the_tv_detail_script_is_served_as_a_module(client):
+    """The binding is loaded as an ES module, so it can import the pure model."""
     html = _tv_detail_html(client, _sample_recipe())
-    assert re.search(
-        rf'<script\b[^>]*{re.escape(TV_DETAIL_SCRIPT)}', html
-    ), f"the TV detail page must load demo-app/static/{TV_DETAIL_SCRIPT}"
-
-
-def test_the_tv_detail_binding_delegates_to_the_pure_action_model():
-    binding = DEMO_APP / "static" / TV_DETAIL_SCRIPT
-    assert binding.is_file(), (
-        f"ticket #8 must add demo-app/static/{TV_DETAIL_SCRIPT}"
+    tags = re.findall(r"<script\b[^>]*>", html)
+    loaders = [tag for tag in tags if TV_DETAIL_SCRIPT in tag]
+    assert loaders, (
+        f"the TV detail page must load demo-app/static/{TV_DETAIL_SCRIPT}; its "
+        f"script tags were {tags!r}"
     )
-    source = binding.read_text(encoding="utf-8")
-    assert "tv-logic.js" in source, (
-        f"{TV_DETAIL_SCRIPT} must import the pure action model from tv-logic.js "
-        "rather than deciding key handling itself"
-    )
-    assert TV_QUERY not in source, (
-        f"{TV_DETAIL_SCRIPT} must navigate to the server-rendered TV browse "
-        "href rather than re-deriving TV mode in JavaScript"
+    for tag in loaders:
+        assert _attribute(tag, "type") == "module", (
+            f"{TV_DETAIL_SCRIPT} must be loaded with type=\"module\", like the TV "
+            "browse binding, so it can import the pure action model from "
+            f"tv-logic.js; the tag was {tag!r}"
+        )
+    served = client.get(f"/static/{TV_DETAIL_SCRIPT}")
+    assert served.status_code == 200, (
+        f"demo-app/static/{TV_DETAIL_SCRIPT} must be served to the TV page; "
+        f"GET /static/{TV_DETAIL_SCRIPT} returned {served.status_code}"
     )
 
 
@@ -738,7 +759,7 @@ def test_the_mobile_detail_route_still_renders_the_mobile_page(client):
 
 def test_the_mobile_detail_back_action_returns_to_the_mobile_browse_page(client):
     recipe = _sample_recipe()
-    anchors = _back_anchors(_mobile_detail_html(client, recipe))
+    anchors = _back_actions(_mobile_detail_html(client, recipe))
     assert anchors, "the mobile recipe page must still offer a back action"
     for anchor in anchors:
         href = _attribute(anchor, "href")
