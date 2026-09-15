@@ -86,6 +86,17 @@
    overflow-wrap, so an overflowing element stays visible in the evidence
    screenshots instead of being silently clipped. */
 
+/* The browse client hides non-matching cards with the hidden attribute, and this
+   file gives several of those elements an explicit display (flex, inline-flex,
+   grid) that outspecifies the user-agent [hidden] rule. Re-establish the
+   attribute once, here, so a later slice can toggle hidden on any element this
+   stylesheet styles - recipe cards, save controls, rails, TV actions - and get
+   the behaviour it expects. .empty-state deliberately declares no display of its
+   own; do not give it one. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--color-surface);
@@ -199,7 +210,11 @@ main {
   min-height: 52px;
   padding: 0 var(--space-3);
   background: var(--color-surface-raised);
-  border: 2px solid var(--color-rule);
+  /* The search field's only visible boundary, so it identifies a user-interface
+     component and needs the 3:1 floor: --color-text-muted #5C544A measures 7.05:1
+     on cream. --color-rule #E4D5BE (1.37:1) stays on the purely decorative
+     topbar/tabbar rules and the card hairline, which identify nothing. */
+  border: 2px solid var(--color-text-muted);
   border-radius: var(--radius-md);
 }
 
@@ -378,6 +393,12 @@ main {
   gap: var(--space-2);
   align-self: flex-start;
   min-height: 44px;
+  /* The client flips aria-pressed in place, so the box has to stay the same size
+     across both states or every save reflows the card and nudges the grid row.
+     Padding is therefore identical in both states and min-width reserves room for
+     the wider saved label; it fits the 132px content box of the narrowest 148px
+     card track at 375px. */
+  min-width: 112px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
   color: var(--color-primary-ink);
@@ -408,7 +429,6 @@ main {
   border-color: var(--color-saved);
   font-weight: 800;
   letter-spacing: 0.04em;
-  padding: var(--space-2) var(--space-5);
   text-decoration: none;
 }
 
@@ -666,6 +686,12 @@ main {
     font-size: 26px;
   }
 
+  /* Same stable-box rule at TV sizing: the 26px saved label fits inside the 296px
+     content box of a 320px rail card. */
+  .save-control {
+    min-width: 200px;
+  }
+
   .save-control-text,
   .save-control-mark,
   .save-control[aria-pressed="true"] .save-control-mark {
@@ -674,7 +700,6 @@ main {
 
   .save-control[aria-pressed="true"] {
     border-width: 4px;
-    padding: var(--space-3) var(--space-6);
   }
 
   .recipe-shell {
