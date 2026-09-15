@@ -22,6 +22,8 @@ pip install -r demo-app/requirements.txt
 
 That installs Flask and pytest. There are no other runtime dependencies, and
 the browser code is plain ES modules, so nothing is bundled or transpiled.
+Python 3.11 or newer is required (the terminology guard uses a scoped regular
+expression flag).
 
 Node is needed only for the client-logic gate (`node --test`, Node 18+).
 
@@ -53,8 +55,20 @@ Append `?mode=tv` to either page:
 - <http://localhost:5000/recipe/golden-oat-porridge?mode=tv> — the TV recipe
   detail page, remote-only, with no pointer-dependent control.
 
-The mode is a query parameter on purpose: one URL per page, both modes
-reachable from any browser, and no user-agent sniffing.
+`?mode=tv` is the documented entry point, and it wins: one URL per page and both
+modes reachable from any browser. A request without that parameter still renders
+TV mode when its `User-Agent` carries a recognised TV hint (`SmartTV`,
+`GoogleTV`, `AndroidTV`, `AppleTV`, `HbbTV`, `webOS`, `Tizen`, `BRAVIA`, `Roku`,
+`VIDAA`, `CrKey` and `Smart-TV`, matched case-insensitively — see
+`demo-app/view_mode.py`), so a television reaches the rails layout on its own.
+Any unrecognised `mode` value falls back to mobile. To check the hint path from a
+terminal:
+
+```bash
+curl -s -H 'User-Agent: Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0)' \
+  http://localhost:5000/ | grep -o '<title>[^<]*</title>'
+# <title>TableStory · recipes on the big screen</title>
+```
 
 ## 3. API walkthrough
 

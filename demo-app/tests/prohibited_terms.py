@@ -156,10 +156,15 @@ def prohibited_pattern() -> re.Pattern[str]:
     'upcoming', 'operating' and 'posterior' clean while still catching a public
     JSON key like 'movie_ids' or a symbol like 'watchlistToggle', where a plain
     word boundary would look through the separator and miss the term.
+
+    The trailing boundary is scoped with ``(?-i:...)`` so it stays
+    lower-case-only: under ``re.IGNORECASE`` a plain ``(?![a-z0-9])`` would
+    reject an upper-case follower too and the pattern would miss exactly those
+    camel-case symbols. Scoped flags need Python 3.11 or newer.
     """
     alternatives = "|".join(_term_alternative(term) for term in PROHIBITED_TERMS)
     return re.compile(
-        rf"(?<![A-Za-z0-9])(?:{alternatives})(?![a-z0-9])", re.IGNORECASE
+        rf"(?<![A-Za-z0-9])(?:{alternatives})(?-i:(?![a-z0-9]))", re.IGNORECASE
     )
 
 
@@ -229,8 +234,21 @@ def _strip_python(source: str, drop_string_literals: bool = False) -> str:
         if char in "\"'":
             triple = source[index : index + 3]
             closer = triple if triple in ('"""', "'''") else char
-            end = source.find(closer, index + len(closer))
-            end = length if end == -1 else end + len(closer)
+            # Walk to the closing quote honouring backslash escapes, so a line
+            # holding \" or \' cannot flip the scanner's string/code parity and
+            # silently discard the rest of the file from the scanned surface.
+            end = index + len(closer)
+            while end < length:
+                if source[end] == "\\":
+                    end += 2
+                    continue
+                if source.startswith(closer, end):
+                    end += len(closer)
+                    break
+                end += 1
+            else:
+                end = length
+            end = min(end, length)
             literal = source[index:end]
             if not drop_string_literals and closer not in ('"""', "'''"):
                 out.append(literal)
@@ -247,6 +265,9 @@ def _strip_js(source: str, drop_string_literals: bool = False) -> str:
     out: list[str] = []
     index = 0
     length = len(source)
+    # Tail of the code emitted so far, used only to tell a regex literal from a
+    # division; a consumed literal counts as a value, hence the "x" sentinel.
+    tail = ""
     while index < length:
         pair = source[index : index + 2]
         if pair == "//":
@@ -258,6 +279,15 @@ def _strip_js(source: str, drop_string_literals: bool = False) -> str:
             index = length if end == -1 else end + 2
             continue
         char = source[index]
+        if char == "/" and _js_regex_starts_here(tail):
+            # A regular-expression literal may hold quote characters; consuming
+            # it here keeps them from opening a bogus string literal that would
+            # swallow the rest of the file out of the scanned surface.
+            end = _js_regex_end(source, index)
+            out.append(" " if drop_string_literals else source[index:end])
+            tail = "x"
+            index = end
+            continue
         if char in "\"'`":
             end = index + 1
             while end < length:
@@ -269,11 +299,53 @@ def _strip_js(source: str, drop_string_literals: bool = False) -> str:
                     break
                 end += 1
             out.append(" " if drop_string_literals else source[index:end])
-            index = end
+            tail = "x"
+            index = min(end, length)
             continue
         out.append(char)
+        if not char.isspace():
+            tail = (tail + char)[-32:]
         index += 1
     return "".join(out)
+
+
+_JS_REGEX_PRECEDERS = set("(,=:[!&|?{};+-*%~^")
+
+
+def _js_regex_starts_here(emitted: str) -> bool:
+    """True when a '/' at this position opens a regex rather than divides."""
+    previous = emitted.rstrip()
+    if not previous:
+        return True
+    if previous[-1] in _JS_REGEX_PRECEDERS:
+        return True
+    keyword = re.search(r"([A-Za-z_$][\w$]*)$", previous)
+    return bool(keyword) and keyword.group(1) in {"return", "typeof", "case", "in", "of"}
+
+
+def _js_regex_end(source: str, start: int) -> int:
+    """Index just past a regex literal (body, flags), or past '/' if unterminated."""
+    index = start + 1
+    length = len(source)
+    in_class = False
+    while index < length:
+        char = source[index]
+        if char == "\\":
+            index += 2
+            continue
+        if char == "\n":
+            return start + 1
+        if in_class:
+            in_class = char != "]"
+        elif char == "[":
+            in_class = True
+        elif char == "/":
+            index += 1
+            while index < length and source[index].isalpha():
+                index += 1
+            return index
+        index += 1
+    return start + 1
 
 
 def scannable_source(path: Path, drop_string_literals: bool = False) -> str:
