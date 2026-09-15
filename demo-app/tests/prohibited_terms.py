@@ -8,8 +8,12 @@ restating them, so tightening the pattern is one edit.
 Surfaces scanned (the supported customer-visible and public surface):
 
   * GET / and GET /recipe/<recipe_id> in both mobile and TV mode - the whole
-    rendered response, including page metadata and accessible labels
-  * all six supported JSON endpoints plus the unknown-recipe error body
+    rendered response, including page metadata and accessible labels - scanned
+    twice: once with an empty cookbook and once with a recipe saved, so the
+    saved-state accessible labels and the populated My Cookbook rail are
+    inspected too
+  * all six supported JSON endpoints plus the unknown-recipe error body, with
+    GET /api/cookbook scanned both empty and populated
   * the client fetch targets named by the browse and TV scripts
   * the template sources, the static sources and the test sources
 
@@ -20,27 +24,22 @@ Documented exclusions (per the human decision recorded in R5, and R40):
   * Internal, non-public filenames and pre-existing internal identifiers are
     out of scope: renaming them is explicitly not required.
   * Source comments, docstrings and Jinja/CSS/JS comment blocks are stripped
-    before a source file is scanned. They are not customer-visible output, not
+    before a source file is scanned: they are not customer-visible output, not
     public field names and not names of anything.
-  * In test sources only, string literals are stripped as well, so what the
-    guard asserts there is the identifier surface - test names, fixtures and
-    symbols. Test prose and negative-control literals such as a removed route
-    path exist precisely to assert that the cinema surface is gone, and
-    ``assert_no_live_legacy_paths`` checks separately that any test file naming
-    a removed path also asserts its absence.
-  * Also in test sources only, a line whose own wording is an absence
-    assertion or terminology-guard machinery - ``def
-    test_cinema_era_files_are_deleted``, ``test_no_supported_response_exposes_
-    movie_ids``, ``REMOVED_FILES``, ``CINEMA_TERMS = re.compile(...)`` - is a
-    negative control, not a surviving cinema name. Naming the removed thing is
-    how such a test states what must not exist, so the term there is evidence
-    the rebrand landed rather than evidence it stalled. The exemption is
-    line-scoped and marker-driven (``no``, ``not``, ``never``, ``gone``,
-    ``deleted``, ``removed``, ``legacy``, ``era``, ``404``, ``term``,
-    ``pattern``, ``guard``, ...): an identifier that merely mentions a
-    prohibited term without asserting its absence is still a failure, and R40
-    (no movie-domain fixtures or watchlist semantics in test sources) keeps
-    applying to every other line.
+  * In test sources only, string literals are stripped too, so what the guard
+    asserts there is the identifier surface - test names, fixtures and symbols.
+    Negative-control literals such as a removed route path exist precisely to
+    assert the cinema surface is gone, and ``assert_no_live_legacy_paths``
+    checks separately, per statement, that each named removed path carries its
+    own absence evidence.
+  * Also in test sources only, a line whose own wording is an absence assertion
+    or guard machinery (``test_cinema_era_files_are_deleted``,
+    ``REMOVED_FILES``) is a negative control, not a surviving cinema name. The
+    exemption is line-scoped and marker-driven (``no``, ``not``, ``never``,
+    ``gone``, ``deleted``, ``removed``, ``legacy``, ``era``, ``404``, ``term``,
+    ``pattern``, ``guard``, ...); an identifier that merely mentions a term
+    without asserting its absence is still a failure, and R40 keeps applying to
+    every other line.
 """
 
 from __future__ import annotations
@@ -88,6 +87,9 @@ LEGACY_PATHS: tuple[str, ...] = (
 )
 
 #: Evidence that a test file naming a removed path is asserting its absence.
+#: Kept deliberately phrase-like rather than reusing the broad token list
+#: below: a bare 'not' (as in ``assert client.get(...) is not None``) is not
+#: evidence that a statement asserts a removed path is gone.
 ABSENCE_MARKERS: tuple[str, ...] = (
     "404",
     "not in",
@@ -97,6 +99,9 @@ ABSENCE_MARKERS: tuple[str, ...] = (
     "absent",
     "no longer",
     "must not",
+    "never",
+    "legacy",
+    "forbidden",
 )
 
 #: Words that make a test-source line an absence assertion (a negative
@@ -147,15 +152,32 @@ def _term_alternative(term: str) -> str:
     return escaped
 
 
+def _camel_alternative(term: str) -> str:
+    """The capitalised form a term takes in the tail of a camel-case symbol."""
+    words = [word[:1].upper() + word[1:] for word in term.split()]
+    escaped = r"\s*".join(re.escape(word) for word in words)
+    if term.casefold() in _PLURALISABLE:
+        return escaped + "s?"
+    return escaped
+
+
 def prohibited_pattern() -> re.Pattern[str]:
     """The one case-insensitive, word-boundary pattern for every term.
 
-    The boundaries are stricter than ``\b`` on purpose. A term is a match when
-    it is not glued to a preceding letter or digit and not continued by a
-    lower-case letter or digit, which keeps innocent host words such as
-    'upcoming', 'operating' and 'posterior' clean while still catching a public
-    JSON key like 'movie_ids' or a symbol like 'watchlistToggle', where a plain
-    word boundary would look through the separator and miss the term.
+    The boundaries are stricter than ``\b`` on purpose, and there are two
+    admissible leading boundaries:
+
+    * ``(?<![A-Za-z0-9])`` - the term opens a word or an identifier segment, so
+      a public JSON key like 'movie_ids' or a symbol like 'watchlistToggle' is
+      caught where a plain word boundary would look through the separator.
+    * ``(?<=[a-z0-9])`` immediately followed by the *capitalised* form of the
+      term, matched case-sensitively - the term sits in the trailing camel-case
+      position of an identifier, the shape of the pre-rebrand symbols
+      ('nextWatchlist', 'addToWatchlist', 'matchesMovie', 'getMovieIds',
+      'showPoster') in the static sources this guard scans. Requiring a capital
+      after a lower-case letter keeps this branch off innocent host words:
+      'upcoming', 'operating' and 'posterior' glue the term to a lower-case
+      letter, so precision is preserved.
 
     The trailing boundary is scoped with ``(?-i:...)`` so it stays
     lower-case-only: under ``re.IGNORECASE`` a plain ``(?![a-z0-9])`` would
@@ -163,8 +185,12 @@ def prohibited_pattern() -> re.Pattern[str]:
     camel-case symbols. Scoped flags need Python 3.11 or newer.
     """
     alternatives = "|".join(_term_alternative(term) for term in PROHIBITED_TERMS)
+    camel = "|".join(_camel_alternative(term) for term in PROHIBITED_TERMS)
     return re.compile(
-        rf"(?<![A-Za-z0-9])(?:{alternatives})(?-i:(?![a-z0-9]))", re.IGNORECASE
+        rf"(?:(?<![A-Za-z0-9])(?:{alternatives})"
+        rf"|(?<=[a-z0-9])(?-i:(?:{camel})))"
+        rf"(?-i:(?![a-z0-9]))",
+        re.IGNORECASE,
     )
 
 
@@ -196,18 +222,88 @@ def assert_terms_absent(text: str, surface: str) -> None:
     )
 
 
+def _bracket_delta(line: str) -> int:
+    """Net bracket depth of one line, ignoring brackets inside quoted text.
+
+    A path literal such as ``r'href="(/recipe/[^"]+)"'`` would otherwise
+    desynchronise the counter for the rest of the file and glue unrelated
+    statements together - which is how a live legacy path could hide inside a
+    statement carrying someone else's absence evidence.
+    """
+    delta = 0
+    quote = ""
+    index = 0
+    while index < len(line):
+        char = line[index]
+        if quote:
+            if char == "\\":
+                index += 2
+                continue
+            if char == quote:
+                quote = ""
+        elif char in "\"'`":
+            quote = char
+        elif char in "([{":
+            delta += 1
+        elif char in ")]}":
+            delta -= 1
+        index += 1
+    return delta
+
+
+def _logical_statements(source: str) -> list[tuple[int, str, str]]:
+    """(1-based start line, statement text, enclosing def/class header) triples.
+
+    Lines are grouped by bracket depth, so a multi-line collection literal is
+    one unit. The header is the nearest preceding ``def``/``class`` line at a
+    smaller indentation - what names the assertion a statement belongs to.
+    """
+    statements: list[tuple[int, str, str]] = []
+    headers: list[tuple[int, str]] = []
+    buffer: list[str] = []
+    start = 1
+    header = ""
+    depth = 0
+    for number, line in enumerate(source.splitlines(), start=1):
+        if depth == 0 and line.strip():
+            indent = len(line) - len(line.lstrip())
+            while headers and headers[-1][0] >= indent:
+                headers.pop()
+            header = headers[-1][1] if headers else ""
+            if re.match(r"\s*(?:async\s+)?(?:def|class)\b", line):
+                headers.append((indent, line))
+        if not buffer:
+            start = number
+        buffer.append(line)
+        depth = max(depth + _bracket_delta(line), 0)
+        if depth == 0:
+            statements.append((start, "\n".join(buffer), header))
+            buffer = []
+    if buffer:
+        statements.append((start, "\n".join(buffer), header))
+    return statements
+
+
 def assert_no_live_legacy_paths(path: Path, source: str) -> None:
-    """A test naming a removed cinema path must also assert it is gone."""
-    named = [legacy for legacy in LEGACY_PATHS if legacy in source]
-    if not named:
-        return
-    lowered = source.casefold()
-    if any(marker in lowered for marker in ABSENCE_MARKERS):
-        return
-    raise AssertionError(
-        f"{path.name} names the removed path(s) {named!r} without asserting their "
-        "absence, so a test could still depend on the cinema surface"
-    )
+    """A test naming a removed cinema path must also assert it is gone.
+
+    Evidence is scoped to the statement naming the path plus its definition
+    header - never the whole file. One '404' or 'removed' token elsewhere in a
+    module must not grant a blanket pass to every legacy path it mentions, so
+    each occurrence carries its own absence evidence.
+    """
+    for number, statement, header in _logical_statements(source):
+        named = [legacy for legacy in LEGACY_PATHS if legacy in statement]
+        if not named:
+            continue
+        evidence = f"{header}\n{statement}".casefold()
+        if any(marker in evidence for marker in ABSENCE_MARKERS):
+            continue
+        raise AssertionError(
+            f"{path.name}:{number} names the removed path(s) {named!r} without "
+            "asserting their absence, so a test could still depend on the cinema "
+            f"surface\n  statement: {statement.strip()[:200]}"
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -253,7 +349,8 @@ def _strip_python(source: str, drop_string_literals: bool = False) -> str:
             if not drop_string_literals and closer not in ('"""', "'''"):
                 out.append(literal)
             else:
-                out.append(" ")
+                # Keep the line count so reported line numbers stay usable.
+                out.append(" " + "\n" * literal.count("\n"))
             index = end
             continue
         out.append(char)
@@ -276,7 +373,9 @@ def _strip_js(source: str, drop_string_literals: bool = False) -> str:
             continue
         if pair == "/*":
             end = source.find("*/", index + 2)
-            index = length if end == -1 else end + 2
+            end = length if end == -1 else end + 2
+            out.append("\n" * source.count("\n", index, end))
+            index = end
             continue
         char = source[index]
         if char == "/" and _js_regex_starts_here(tail):
@@ -463,18 +562,6 @@ def collect_surfaces(client: Any) -> list[tuple[str, str]]:
 
     surfaces.append(
         (
-            "GET /api/recipes/unknown-recipe (404 error body)",
-            _request(
-                client,
-                "get",
-                "GET /api/recipes/unknown-recipe",
-                "/api/recipes/unknown-recipe",
-                404,
-            ),
-        )
-    )
-    surfaces.append(
-        (
             "POST /api/cookbook",
             _request(
                 client,
@@ -483,6 +570,27 @@ def collect_surfaces(client: Any) -> list[tuple[str, str]]:
                 "/api/cookbook",
                 201,
                 json={"id": recipe_id},
+            ),
+        )
+    )
+    # With a recipe saved, re-scan every page and the cookbook body: the saved
+    # accessible label, the non-empty My Cookbook rail and a populated
+    # GET /api/cookbook payload exist only in this state.
+    saved_pages: Sequence[tuple[str, str]] = tuple(
+        (f"{label} with a saved recipe", path) for label, path in pages
+    ) + (("GET /api/cookbook with a saved recipe", "/api/cookbook"),)
+    for label, path in saved_pages:
+        surfaces.append((label, _request(client, "get", label, path, 200)))
+
+    surfaces.append(
+        (
+            "GET /api/recipes/unknown-recipe (404 error body)",
+            _request(
+                client,
+                "get",
+                "GET /api/recipes/unknown-recipe",
+                "/api/recipes/unknown-recipe",
+                404,
             ),
         )
     )
