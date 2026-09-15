@@ -252,6 +252,17 @@ test('a non-matching query reveals the exact server-rendered empty state', () =>
   assert.equal(page.emptyState.textContent, EMPTY_STATE_TEXT);
 });
 
+test('a query already in the restored field is applied when the binding initialises', () => {
+  const page = browsePage();
+  page.search.value = 'chickpea';
+
+  initBrowseSearch(page.root);
+
+  assert.deepEqual(visibleIds(page), ['lemon-chickpea-salad']);
+  assert.equal(page.count.textContent, '1 recipe');
+  assert.equal(page.emptyState.hidden, true);
+});
+
 test('the search binding does not bind on a page without a search field or grid', () => {
   const page = detailPage(CARDS[0]);
   initBrowseSearch(page.root);
@@ -377,6 +388,50 @@ test('a non-2xx response reverts the state, label and cue', async () => {
 
     assert.deepEqual(snapshot(control), before);
   });
+});
+
+test('a failed request reverts only its own control and keeps a concurrent save', async () => {
+  const page = browsePage();
+  const pending = [];
+  const stub = fetchStub(
+    () =>
+      new Promise((resolve, reject) => {
+        pending.push({resolve, reject});
+      }),
+  );
+
+  await withoutGlobalFetch(async () => {
+    initCookbookControls(page.root, stub.impl);
+    const first = controlFor(page, 'golden-oat-porridge');
+    const second = controlFor(page, 'lemon-chickpea-salad');
+    const firstBefore = snapshot(first);
+
+    // Both toggles are in flight before either request resolves.
+    first.click();
+    second.click();
+    await settle();
+    assert.equal(pending.length, 2);
+
+    pending[0].reject(new Error('offline'));
+    pending[1].resolve({ok: true, status: 201});
+    await settle();
+
+    // The refused save is undone; the accepted one is untouched.
+    assert.deepEqual(snapshot(first), firstBefore);
+    assert.deepEqual(snapshot(second), {
+      pressed: 'true',
+      label: saveControlState('Lemon Chickpea Salad', true).label,
+      text: '✓Saved',
+    });
+  });
+
+  assert.deepEqual(
+    stub.calls.map((call) => [call.method, call.url]),
+    [
+      ['POST', '/api/cookbook'],
+      ['POST', '/api/cookbook'],
+    ],
+  );
 });
 
 test('the save binding returns quietly when the page renders no controls', async () => {

@@ -50,7 +50,7 @@ export function initBrowseSearch(root = globalThis.document) {
   const count = scope.querySelector(COUNT_SELECTOR);
   const emptyState = scope.querySelector(EMPTY_STATE_SELECTOR);
 
-  search.addEventListener('input', () => {
+  const apply = () => {
     let visible = 0;
     for (const card of cards) {
       const matched = matchesRecipe(card.getAttribute('data-search-text'), search.value);
@@ -65,7 +65,12 @@ export function initBrowseSearch(root = globalThis.document) {
     if (emptyState) {
       emptyState.hidden = !emptyStateVisible(visible);
     }
-  });
+  };
+
+  search.addEventListener('input', apply);
+  // Run once so a field the browser restored on back/forward navigation cannot
+  // leave a query on screen with every card visible and the full count showing.
+  apply();
 }
 
 /** Apply one TYPE_SAVE_STATE to a control's state attribute, name, cue and text. */
@@ -119,14 +124,15 @@ export function initCookbookControls(root = globalThis.document, fetchImpl = glo
 
   const toggle = async (control) => {
     const id = control.getAttribute('data-recipe-id');
-    const previous = saved;
     const next = nextCookbook(saved, id);
     const wantSaved = next.includes(id);
     saved = next;
     render();
     const accepted = await requestCookbookChange(id, wantSaved, fetchImpl);
     if (!accepted) {
-      saved = previous;
+      // Undo only this id. Restoring a snapshot of the whole list would discard
+      // a concurrent toggle on another card that the server did accept.
+      saved = nextCookbook(saved, id);
       render();
     }
   };
