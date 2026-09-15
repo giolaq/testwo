@@ -11,6 +11,9 @@ from cookbook import CookbookStore, UnknownRecipeError
 from rails import (
     COOKBOOK_EMPTY_STATE,
     COOKBOOK_RAIL_NAME,
+    IS_POPULAR,
+    IS_QUICK,
+    IS_VEGETARIAN,
     QUICK_MINUTES,
     RAIL_NAMES,
     VEGETARIAN_TAG,
@@ -139,6 +142,19 @@ def test_membership_is_derived_from_the_recipe_data(collection):
     assert rails["Vegetarian favourites"]["recipe_ids"] == expected(
         lambda r: VEGETARIAN_TAG in r["dietary_tags"]
     )
+
+
+def test_exported_predicates_drive_the_rails_they_name(collection):
+    """The rails are composed by the exported predicates, not a parallel copy."""
+    rails = rails_by_name(collection)
+    for name, predicate in (
+        (RAIL_NAMES[0], IS_POPULAR),
+        (RAIL_NAMES[1], IS_QUICK),
+        (RAIL_NAMES[2], IS_VEGETARIAN),
+    ):
+        expected = [recipe["id"] for recipe in rail_members(collection, predicate)]
+        assert rails[name]["recipe_ids"] == expected, name
+        assert expected, name
 
 
 def test_rail_members_uses_the_predicate_it_is_given(collection):

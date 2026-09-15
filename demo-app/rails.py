@@ -30,11 +30,19 @@ VEGETARIAN_TAG = "Vegetarian"
 COOKBOOK_EMPTY_STATE = "No saved recipes yet. Add a dish to My Cookbook to see it here."
 
 # The three derived membership predicates, defined once as module constants.
-IS_POPULAR: Callable[[dict], bool] = lambda recipe: bool(recipe["featured"])
-IS_QUICK: Callable[[dict], bool] = lambda recipe: total_minutes(recipe) <= QUICK_MINUTES
-IS_VEGETARIAN: Callable[[dict], bool] = (
-    lambda recipe: VEGETARIAN_TAG in recipe["dietary_tags"]
-)
+def IS_POPULAR(recipe: dict) -> bool:
+    """'Popular this week' membership: the recipe is featured."""
+    return bool(recipe["featured"])
+
+
+def IS_QUICK(recipe: dict) -> bool:
+    """'Ready in 30 minutes' membership: total time is at most QUICK_MINUTES."""
+    return total_minutes(recipe) <= QUICK_MINUTES
+
+
+def IS_VEGETARIAN(recipe: dict) -> bool:
+    """'Vegetarian favourites' membership: the Vegetarian dietary tag is present."""
+    return VEGETARIAN_TAG in recipe["dietary_tags"]
 
 
 def rail_members(
