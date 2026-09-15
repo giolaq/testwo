@@ -29,7 +29,8 @@ VEGETARIAN_TAG = "Vegetarian"
 
 COOKBOOK_EMPTY_STATE = "No saved recipes yet. Add a dish to My Cookbook to see it here."
 
-# The three derived membership predicates, defined once as module constants.
+# The three derived membership predicates. Each is defined once here and passed
+# to rail_members, so a rail's membership can never drift from the recipe data.
 def IS_POPULAR(recipe: dict) -> bool:
     """'Popular this week' membership: the recipe is featured."""
     return bool(recipe["featured"])
