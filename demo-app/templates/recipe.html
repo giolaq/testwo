@@ -7,14 +7,58 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body class="recipe-page">
-  {# Minimal recipe page: routing and the 404 path are provable from here. The
-     metadata block, ingredient list, numbered steps and the state-bearing save
-     control are rendered by T-DETAIL from the context detail_context already
-     supplies. #}
-  <main class="recipe-shell">
+  {# Every value comes from detail_context; this template only presents it. #}
+  <header class="recipe-topbar">
     <a class="back" href="{{ back_href }}">← Browse</a>
-    <h1>{{ title }}</h1>
+    <span class="brand-mark">{{ brand_name }}</span>
+  </header>
+
+  <main class="recipe-shell">
+    <span class="recipe-artwork recipe-artwork-hero" aria-hidden="true"
+          style="--artwork-a: {{ colors[0] }}; --artwork-b: {{ colors[1] }}">
+      <span class="recipe-artwork-initial">{{ artwork_initial }}</span>
+    </span>
+
+    <h1 class="recipe-title">{{ title }}</h1>
     <p class="recipe-description">{{ description }}</p>
+
+    <p class="recipe-category">{{ category }}</p>
+    {% if dietary_tags %}
+    <ul class="recipe-dietary">
+      {% for tag in dietary_tags %}<li class="recipe-dietary-item">{{ tag }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <dl class="recipe-meta">
+      <dt class="recipe-meta-term">Prep time</dt>
+      <dd class="recipe-meta-value">{{ prep_minutes }} min</dd>
+      <dt class="recipe-meta-term">Cook time</dt>
+      <dd class="recipe-meta-value">{{ cook_minutes }} min</dd>
+      <dt class="recipe-meta-term">Total time</dt>
+      <dd class="recipe-meta-value">{{ total_minutes }} min</dd>
+      <dt class="recipe-meta-term">Difficulty</dt>
+      <dd class="recipe-meta-value">{{ difficulty }}</dd>
+      <dt class="recipe-meta-term">Serves</dt>
+      <dd class="recipe-meta-value">{{ servings }}</dd>
+    </dl>
+
+    {% with recipe_id = recipe.id, saved = saved, control_label = control_label %}
+      {% include "_partials/save_control.html" %}
+    {% endwith %}
+
+    <section class="recipe-ingredients">
+      <h2>Ingredients</h2>
+      <ul class="recipe-ingredient-list">
+        {% for ingredient in ingredients %}<li>{{ ingredient }}</li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="recipe-method">
+      <h2>Method</h2>
+      <ol class="recipe-step-list">
+        {% for step in steps %}<li>{{ step }}</li>{% endfor %}
+      </ol>
+    </section>
   </main>
 </body>
 </html>
