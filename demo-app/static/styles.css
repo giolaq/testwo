@@ -539,6 +539,9 @@ main {
    off at the top and at the leading edge. */
 .rail-track {
   display: flex;
+  /* start, not stretch: a card with a longer title must not stretch the height of
+     its siblings' wrappers. */
+  align-items: start;
   gap: var(--space-3);
   margin: 0;
   padding: var(--space-2);
@@ -547,8 +550,17 @@ main {
   scroll-behavior: smooth;
 }
 
+/* The flex item is whatever the TV markup puts directly in the rail - the card
+   itself or a list-item wrapper around it - so the width is set on the item and
+   the card is made to fill it. That keeps rail cards uniformly sized under either
+   markup shape instead of only when the card is the direct child. */
 .rail-track > * {
   flex: 0 0 auto;
+  min-width: 0;
+}
+
+.rail-track > * > .recipe-card {
+  width: 100%;
 }
 
 .tv-actions {
@@ -646,8 +658,10 @@ main {
     padding: var(--space-4);
   }
 
-  .rail-track .recipe-card {
-    flex: 0 0 320px;
+  /* Sizes the rail's flex item, whichever element that is; the card fills it via
+     the .rail-track > * > .recipe-card rule above. */
+  .rail-track > * {
+    width: 320px;
   }
 
   .recipe-grid {
