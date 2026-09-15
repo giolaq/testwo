@@ -1,17 +1,41 @@
 """Implementation-owned tests for the TableStory pages, API and legacy cutover."""
 
 import re
+from pathlib import Path
 
-from page_routes import EMPTY_STATE, TAGLINE
+from page_routes import EMPTY_STATE, TAGLINE, cookbook_control_label
 from rails import RAIL_NAMES
 from recipe_data import load_recipes
 from recipe_search import total_minutes
 
 UNKNOWN_ID = "no-such-recipe"
 
+APP_DIR = Path(__file__).resolve().parents[1]
+
+# The cinema surface this ticket removes atomically: no alias, shim or leftover
+# file may survive the change (D_HARD_CUTOVER).
+REMOVED_FILES = (
+    "catalog.json",
+    "templates/index.html",
+    "templates/detail.html",
+    "static/app.js",
+    "static/app-logic.js",
+    "static/tests/app-logic.test.js",
+)
+
 
 def _collection():
     return load_recipes()
+
+
+def _card_blocks(html):
+    """The rendered markup of each recipe card, keyed by recipe id."""
+    blocks = re.findall(
+        r'<article class="recipe-card" data-recipe-id="([^"]+)"(.*?)</article>',
+        html,
+        re.DOTALL,
+    )
+    return dict(blocks)
 
 
 def test_browse_renders_one_card_per_recipe(client):
@@ -24,15 +48,38 @@ def test_browse_renders_one_card_per_recipe(client):
     assert TAGLINE in html
     assert f"{len(collection.recipes)} recipes" in html
 
+    cards = _card_blocks(html)
+    assert sorted(cards) == sorted(recipe["id"] for recipe in collection.recipes)
+
     for recipe in collection.recipes:
-        assert recipe["title"] in html
-        assert recipe["difficulty"] in html
-        assert str(total_minutes(recipe)) in html
+        # Assert inside the card's own markup, so a value present elsewhere on
+        # the page cannot stand in for a card that is missing it.
+        card = cards[recipe["id"]]
+        assert recipe["title"] in card
+        assert f'class="recipe-card-difficulty">{recipe["difficulty"]}<' in card
+        # Total time is asserted against prep + cook from the fixture rather than
+        # against the helper the page itself uses (R10).
+        expected_total = recipe["prep_minutes"] + recipe["cook_minutes"]
+        assert expected_total == total_minutes(recipe)
+        assert f'class="recipe-card-time">{expected_total} min total<' in card
+        assert f'href="/recipe/{recipe["id"]}"' in card
         # At least one category or dietary label per card (R10).
         assert any(
-            f'class="recipe-card-label">{label}<' in html
+            f'class="recipe-card-label">{label}<' in card
             for label in (recipe["category"], *recipe["dietary_tags"])
         ), recipe["id"]
+        # A labelled My Cookbook control in its unsaved state (R12).
+        expected_label = cookbook_control_label(recipe["title"], False)
+        assert f'aria-label="{expected_label}"' in card
+        assert 'aria-pressed="false"' in card
+
+
+def test_cinema_era_files_are_deleted():
+    for relative in REMOVED_FILES:
+        assert not (APP_DIR / relative).exists(), relative
+
+    # The node gate globs this directory, so it must never be left empty.
+    assert list((APP_DIR / "static" / "tests").glob("*.test.js"))
 
 
 def test_every_card_link_opens_a_recipe_page(client):
