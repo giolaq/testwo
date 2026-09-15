@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920,initial-scale=1">
+  <title>{{ brand_name }} · recipes on the big screen</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="tv-mode">
+  {# The four curated rails in fixed order. Every card comes from the shared
+     recipe card partial, so the save-control contract cannot drift between the
+     mobile grid and the TV rails. The rail-index and card-index attributes on
+     each card are the contract between this markup and the pure focus model in
+     static/tv-logic.js. #}
+  <header class="tv-topbar">
+    <a class="brand" href="{{ browse_href }}" aria-label="{{ brand_name }} home">
+      <span class="brand-mark" aria-hidden="true">TS</span>{{ brand_name }}
+    </a>
+    <p class="tv-tagline">{{ tagline }}</p>
+  </header>
+
+  <main class="tv-rails" id="tv-rails">
+    {% for rail in rails %}
+      {% set rail_index = loop.index0 %}
+      <section class="tv-rail" aria-labelledby="tv-rail-{{ rail_index }}">
+        <h2 class="tv-rail-name" id="tv-rail-{{ rail_index }}">{{ rail.name }}</h2>
+        {% if rail.cards %}
+          <ul class="tv-rail-track" role="list">
+            {% for card in rail.cards %}
+              <li class="tv-card"
+                  data-rail-index="{{ rail_index }}"
+                  data-card-index="{{ loop.index0 }}"
+                  tabindex="{{ '0' if rail_index == 0 and loop.first else '-1' }}">
+                {% include "_partials/recipe_card.html" %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="tv-rail-empty">{{ rail.empty_state }}</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </main>
+
+  <script type="module" src="{{ url_for('static', filename='tv-browse.js') }}"></script>
+</body>
+</html>
