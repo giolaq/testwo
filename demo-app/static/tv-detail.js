@@ -1,33 +1,19 @@
 // TV detail DOM binding. Holds no decision logic: every key goes through the
-// pure action model in tv-logic.js, and the My Cookbook action reuses the shared
-// save-control helpers so the TV control cannot drift from the mobile one.
+// pure action model in tv-logic.js, and the My Cookbook action is delegated to
+// the shared mobile save-control binding (initCookbookControls in browse.js) so
+// the TV control cannot drift from the mobile one and every activation - remote
+// Enter, a native button activation or a pointer - runs through one state
+// machine rather than two that can disagree about what is saved.
 //
 // The action list is the two stacked primary actions the remote must reach: the
 // back action first, then the My Cookbook control. Their order in the rendered
 // markup is the contract with resolveDetailKey's focus indices.
 
 import {resolveDetailKey} from './tv-logic.js';
-import {saveControlState, titleFromControlLabel} from './browse-logic.js';
-import {requestCookbookChange} from './browse.js';
+import {initCookbookControls} from './browse.js';
 
 const ACTION_LIST_SELECTOR = '[data-tv-actions]';
 const ACTION_SELECTOR = 'a[href], button';
-const CUE_SELECTOR = '.save-control-mark';
-const TEXT_SELECTOR = '.save-control-text';
-
-/** Apply one TYPE_SAVE_STATE to a control's state attribute, name, cue and text. */
-function applySaveState(control, state) {
-  control.setAttribute('aria-pressed', state.pressed ? 'true' : 'false');
-  control.setAttribute('aria-label', state.label);
-  const cue = control.querySelector?.(CUE_SELECTOR);
-  if (cue) {
-    cue.textContent = state.cue;
-  }
-  const text = control.querySelector?.(TEXT_SELECTOR);
-  if (text) {
-    text.textContent = state.text;
-  }
-}
 
 /** Navigate using an href the server already rendered, never one derived here. */
 function navigate(href) {
@@ -90,29 +76,14 @@ export function initTvDetail(root = globalThis.document) {
     }
   });
 
-  // One request per recipe at a time, so the revert is provably the inverse of
-  // the toggle it undoes - the same rule the mobile binding follows.
-  let saving = false;
-
-  const toggleCookbook = async (control) => {
-    const id = control.getAttribute('data-recipe-id');
-    if (!id || saving) {
-      return;
-    }
-    const title = titleFromControlLabel(control.getAttribute('aria-label'));
-    const wasSaved = control.getAttribute('aria-pressed') === 'true';
-    applySaveState(control, saveControlState(title, !wasSaved));
-    saving = true;
-    let accepted = false;
-    try {
-      accepted = await requestCookbookChange(id, !wasSaved, globalThis.fetch);
-    } finally {
-      saving = false;
-    }
-    if (!accepted) {
-      applySaveState(control, saveControlState(title, wasSaved));
-    }
-  };
+  // The shared mobile binding owns the My Cookbook control's state, so the TV
+  // control behaves identically to the mobile one and there is exactly one state
+  // machine per control. Importing browse.js already ran initCookbookControls
+  // over the document, so binding the document again here would give the control
+  // two independently-stateful click handlers; only another root still needs it.
+  if (root !== globalThis.document) {
+    initCookbookControls(root);
+  }
 
   root.addEventListener('keydown', (event) => {
     const intent = resolveDetailKey(event.key, focusIndex, actions.length);
@@ -129,13 +100,14 @@ export function initTvDetail(root = globalThis.document) {
         return;
       }
       // Suppress the browser's own Enter activation so the action runs exactly
-      // once, here, whichever element type holds focus.
+      // once, whichever element type holds focus: a link is followed here, and a
+      // control is activated through the one click handler that owns its state.
       event.preventDefault?.();
       const href = action.getAttribute?.('href');
       if (href) {
         navigate(href);
-      } else {
-        void toggleCookbook(action);
+      } else if (typeof action.click === 'function') {
+        action.click();
       }
       return;
     }
