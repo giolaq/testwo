@@ -434,6 +434,50 @@ test('a failed request reverts only its own control and keeps a concurrent save'
   );
 });
 
+test('a refused request leaves one control unsaved even when it was activated twice in flight', async () => {
+  const page = browsePage();
+  const pending = [];
+  const stub = fetchStub(
+    () =>
+      new Promise((resolve, reject) => {
+        pending.push({resolve, reject});
+      }),
+  );
+
+  await withoutGlobalFetch(async () => {
+    initCookbookControls(page.root, stub.impl);
+    const control = controlFor(page, 'golden-oat-porridge');
+    const before = snapshot(control);
+
+    // Two activations of the SAME control before its first request settles.
+    control.click();
+    control.click();
+    await settle();
+
+    // The second activation is suppressed while the first is in flight, so the
+    // refusal below can only ever undo the toggle it belongs to.
+    assert.equal(pending.length, 1);
+    assert.equal(stub.calls.length, 1);
+    assert.deepEqual(stub.calls[0].method, 'POST');
+
+    pending[0].reject(new Error('offline'));
+    // Resolve any later request the binding may have queued, so the assertion
+    // below describes the settled end state rather than a mid-flight one.
+    for (let index = 1; index < pending.length; index += 1) {
+      pending[index].resolve({ok: true, status: 200});
+    }
+    await settle();
+
+    assert.deepEqual(snapshot(control), before);
+    assert.equal(control.getAttribute('aria-pressed'), 'false');
+    assert.equal(
+      control.getAttribute('aria-label'),
+      saveControlState('Golden Oat Porridge', false).label,
+    );
+    assert.equal(control.textContent, '+Save');
+  });
+});
+
 test('the save binding returns quietly when the page renders no controls', async () => {
   const stub = fetchStub();
   const root = new Node('body').append(new Node('main'));

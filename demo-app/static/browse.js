@@ -122,13 +122,28 @@ export function initCookbookControls(root = globalThis.document, fetchImpl = glo
     }
   };
 
+  // Ids whose cookbook request has not settled yet. One request per recipe at a
+  // time keeps the revert provably the inverse of the toggle it undoes: without
+  // this, activating the same control twice before the first request settles
+  // could leave the control reporting a save the server refused.
+  const inFlight = new Set();
+
   const toggle = async (control) => {
     const id = control.getAttribute('data-recipe-id');
+    if (inFlight.has(id)) {
+      return;
+    }
     const next = nextCookbook(saved, id);
     const wantSaved = next.includes(id);
     saved = next;
     render();
-    const accepted = await requestCookbookChange(id, wantSaved, fetchImpl);
+    inFlight.add(id);
+    let accepted = false;
+    try {
+      accepted = await requestCookbookChange(id, wantSaved, fetchImpl);
+    } finally {
+      inFlight.delete(id);
+    }
     if (!accepted) {
       // Undo only this id. Restoring a snapshot of the whole list would discard
       // a concurrent toggle on another card that the server did accept.
