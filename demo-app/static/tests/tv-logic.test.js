@@ -1,14 +1,21 @@
 // Focus-transition tests for the pure TV model in static/tv-logic.js.
 //
 // Table-driven and offline: all four arrows, first/last-card clamping, vertical
-// moves into a shorter rail and into an empty rail, and unhandled keys.
+// moves into a shorter rail and into an empty rail, and unhandled keys on the
+// browse rails, plus the detail action model - both arrows with clamping at each
+// end, Enter, the Escape/Backspace equivalence and unhandled keys.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {clampIndex, nextFocus} from '../tv-logic.js';
+import {clampIndex, nextFocus, resolveDetailKey} from '../tv-logic.js';
 
 const RAILS = [4, 2, 3, 0];
+
+// The rendered TV detail action list: the back action, then My Cookbook.
+const BACK = 0;
+const COOKBOOK = 1;
+const ACTIONS = 2;
 
 const CASES = [
   // ArrowRight within a rail, and clamped on the last card.
@@ -64,4 +71,83 @@ test('a walkthrough across two rails ends on an existing card', () => {
   }
   assert.deepEqual([state.railIndex, state.cardIndex], [2, 1]);
   assert.ok(RAILS[state.railIndex] > state.cardIndex, 'the card exists in its rail');
+});
+
+test('resolveDetailKey moves between the two ordered actions', () => {
+  assert.deepEqual(resolveDetailKey('ArrowDown', BACK, ACTIONS), {
+    focusIndex: COOKBOOK,
+    action: 'none',
+  });
+  assert.deepEqual(resolveDetailKey('ArrowUp', COOKBOOK, ACTIONS), {
+    focusIndex: BACK,
+    action: 'none',
+  });
+});
+
+test('resolveDetailKey clamps at each end of the action list', () => {
+  assert.deepEqual(
+    resolveDetailKey('ArrowUp', BACK, ACTIONS),
+    {focusIndex: BACK, action: 'none'},
+    'there is no action above the back action',
+  );
+  assert.deepEqual(
+    resolveDetailKey('ArrowDown', COOKBOOK, ACTIONS),
+    {focusIndex: COOKBOOK, action: 'none'},
+    'there is no action below My Cookbook',
+  );
+
+  // A held remote key settles on an end instead of addressing a missing action.
+  let index = BACK;
+  for (let press = 0; press < 5; press += 1) {
+    index = resolveDetailKey('ArrowDown', index, ACTIONS).focusIndex;
+  }
+  assert.equal(index, COOKBOOK);
+  for (let press = 0; press < 5; press += 1) {
+    index = resolveDetailKey('ArrowUp', index, ACTIONS).focusIndex;
+  }
+  assert.equal(index, BACK);
+});
+
+test('resolveDetailKey yields activate for Enter without moving focus', () => {
+  for (const focusIndex of [BACK, COOKBOOK]) {
+    assert.deepEqual(resolveDetailKey('Enter', focusIndex, ACTIONS), {
+      focusIndex,
+      action: 'activate',
+    });
+  }
+});
+
+test('resolveDetailKey treats Escape and Backspace as the same back action', () => {
+  for (const focusIndex of [BACK, COOKBOOK]) {
+    const escape = resolveDetailKey('Escape', focusIndex, ACTIONS);
+    const backspace = resolveDetailKey('Backspace', focusIndex, ACTIONS);
+    assert.deepEqual(escape, {focusIndex, action: 'back'});
+    assert.deepEqual(
+      backspace,
+      escape,
+      'remotes send either key for the same physical button',
+    );
+  }
+});
+
+test('resolveDetailKey ignores every unhandled key', () => {
+  const unhandled = [
+    'ArrowLeft',
+    'ArrowRight',
+    'Tab',
+    ' ',
+    'Home',
+    'MediaPlayPause',
+    'enter',
+    'escape',
+    'backspace',
+    '',
+  ];
+  for (const key of unhandled) {
+    assert.deepEqual(
+      resolveDetailKey(key, COOKBOOK, ACTIONS),
+      {focusIndex: COOKBOOK, action: 'none'},
+      `${key === '' ? '(empty key name)' : key} must not act on the detail page`,
+    );
+  }
 });
