@@ -4,15 +4,23 @@
    Palette roles (approved): surface #FFF8ED, primary/active #C9472D,
    saved #3F6B4F, text #26231F, highlight #E9B44C.
 
-   Measured WCAG contrast against the cream surface:
-     text #26231F      14.82:1  (body copy, AA and AAA)
-     muted #5C544A      7.05:1  (secondary copy, AA)
-     saved #3F6B4F       5.81:1  (saved state text and fill, AA)
-     primary #C9472D     4.50:1  (actions and focus ring; labels on the
-                                  primary fill are 19px/700 so they clear the
-                                  3:1 large-text floor with room to spare)
-     highlight #E9B44C   1.79:1  (fill and rule only - never text on cream;
-                                  text #26231F on highlight is 8.27:1)
+   Measured WCAG 2.1 contrast (computed, not estimated - see the recorded table in
+   the ticket evidence). The size each ratio has to cover is stated because the AA
+   floor is 4.5:1 for text below 18.66px bold / 24px regular and 3:1 for larger
+   text and for user-interface components:
+     text #26231F on surface       14.82:1  all sizes (AAA)
+     muted #5C544A on surface       7.05:1  all sizes (12px+ metadata, hero copy)
+     saved #3F6B4F on surface       5.81:1  all sizes
+     surface on saved #3F6B4F       5.81:1  all sizes (14px saved label)
+     primary-ink #B23F27 on surf.   5.48:1  all sizes (14px/16px action text)
+     surface on primary-ink         5.48:1  all sizes (14px brand mark, 19px TV
+                                             action label)
+     text #26231F on highlight      8.27:1  all sizes (12px category pill)
+     primary #C9472D on surface     4.50:1  components only - exactly 4.4999:1,
+                                             so it is used for the focus ring and
+                                             for borders, never for text or for a
+                                             fill that carries text
+     highlight #E9B44C on surface   1.79:1  decorative fill and rule only
 
    Class names come from the recipe-domain markup: .recipe-grid, .recipe-card,
    .recipe-artwork, .recipe-artwork-initial, .save-control, .empty-state, and
@@ -26,6 +34,12 @@
   --color-saved: #3F6B4F;
   --color-text: #26231F;
   --color-highlight: #E9B44C;
+
+  /* Deeper tone of the same tomato, derived from --color-primary. #C9472D measures
+     4.4999:1 on cream, which clears the 3:1 component floor but not the 4.5:1 text
+     floor, so every action *label* and every fill that carries a label uses this
+     5.48:1 tone while the border, ring and rule keep --color-primary itself. */
+  --color-primary-ink: #B23F27;
 
   /* Neutrals derived from the palette; all light, all AA-safe for their use. */
   --color-surface-raised: #FFFDF8;
@@ -67,9 +81,10 @@
   box-sizing: border-box;
 }
 
-html {
-  overflow-x: hidden;
-}
+/* No global overflow suppression: the 375px floor is carried by border-box sizing,
+   the zero-min grid track, min-width: 0 on flex and grid children and
+   overflow-wrap, so an overflowing element stays visible in the evidence
+   screenshots instead of being silently clipped. */
 
 body {
   margin: 0;
@@ -98,7 +113,12 @@ input {
   color: inherit;
 }
 
-/* ------------------------------------------------------------- focus treatment */
+/* ------------------------------------------------------------- focus treatment
+
+   The ring is an outline only: it must not touch border-radius, because an
+   element-level radius here would outspecify the pill radius of .save-control and
+   .tv-action and make those controls change shape when focused. Modern engines
+   already follow the element's own radius when drawing the outline. */
 
 a:focus-visible,
 button:focus-visible,
@@ -107,7 +127,6 @@ summary:focus-visible,
 [tabindex]:focus-visible {
   outline: 3px solid var(--color-primary);
   outline-offset: 3px;
-  border-radius: var(--radius-sm);
 }
 
 /* ------------------------------------------------------------------ app shell */
@@ -141,7 +160,7 @@ summary:focus-visible,
   width: 36px;
   height: 36px;
   border-radius: var(--radius-pill);
-  background: var(--color-primary);
+  background: var(--color-primary-ink);
   color: var(--color-surface);
   font-size: var(--size-small);
   font-weight: 800;
@@ -361,7 +380,7 @@ main {
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   border: 2px dashed var(--color-primary);
   border-radius: var(--radius-pill);
   font-size: var(--size-small);
@@ -431,7 +450,7 @@ main {
 .back {
   display: inline-block;
   padding: var(--space-3) var(--space-2) var(--space-4) 0;
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   font-weight: 700;
 }
 
@@ -478,7 +497,7 @@ main {
 }
 
 .step-list li::marker {
-  color: var(--color-primary);
+  color: var(--color-primary-ink);
   font-weight: 800;
 }
 
@@ -494,11 +513,15 @@ main {
   letter-spacing: -0.02em;
 }
 
+/* A rail is a scroll container, so it clips on both axes. Its padding must exceed
+   the focus ring (3px outline at a 3px offset here, 6px at 6px on TV) or the ring
+   of the focused card - the only focus affordance a remote user has - would be cut
+   off at the top and at the leading edge. */
 .rail-track {
   display: flex;
   gap: var(--space-3);
   margin: 0;
-  padding: var(--space-1) var(--space-1) var(--space-3);
+  padding: var(--space-2);
   list-style: none;
   overflow-x: auto;
   scroll-behavior: smooth;
@@ -523,7 +546,7 @@ main {
   justify-content: center;
   min-height: 56px;
   padding: var(--space-3) var(--space-5);
-  background: var(--color-primary);
+  background: var(--color-primary-ink);
   color: var(--color-surface);
   border: 2px solid var(--color-primary);
   border-radius: var(--radius-pill);
@@ -599,7 +622,8 @@ main {
 
   .rail-track {
     gap: var(--space-5);
-    padding: var(--space-2) var(--space-2) var(--space-5);
+    /* 18px on every side clears the 6px TV outline at its 6px offset. */
+    padding: var(--space-4);
   }
 
   .rail-track .recipe-card {
