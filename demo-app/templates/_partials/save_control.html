@@ -1,0 +1,9 @@
+{# My Cookbook control. One boolean drives the state attribute, the visible cue
+   and the accessible name, so they cannot drift apart. #}
+<button class="save-control" type="button"
+        data-recipe-id="{{ recipe_id }}"
+        aria-pressed="{{ 'true' if saved else 'false' }}"
+        aria-label="{{ control_label }}">
+  <span class="save-control-mark" aria-hidden="true">{{ '✓' if saved else '+' }}</span>
+  <span class="save-control-text">{{ 'Saved' if saved else 'Save' }}</span>
+</button>

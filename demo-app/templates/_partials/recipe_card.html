@@ -1,0 +1,20 @@
+{# One recipe card. Every value comes from card_view so the mobile grid and the
+   later TV rails render the same derived facts. #}
+<article class="recipe-card" data-recipe-id="{{ card.recipe.id }}"
+         data-search-text="{{ card.search_text }}">
+  <a class="recipe-card-link" href="{{ card.detail_href }}">
+    <span class="recipe-artwork" aria-hidden="true"
+          style="--artwork-a: {{ card.colors[0] }}; --artwork-b: {{ card.colors[1] }}">
+      <span class="recipe-artwork-initial">{{ card.artwork_initial }}</span>
+    </span>
+    <h3 class="recipe-card-title">{{ card.recipe.title }}</h3>
+  </a>
+  <ul class="recipe-card-meta">
+    <li class="recipe-card-time">{{ card.total_minutes }} min total</li>
+    <li class="recipe-card-difficulty">{{ card.difficulty }}</li>
+    {% for label in card.labels %}<li class="recipe-card-label">{{ label }}</li>{% endfor %}
+  </ul>
+  {% with recipe_id = card.recipe.id, saved = card.saved, control_label = card.control_label %}
+    {% include "_partials/save_control.html" %}
+  {% endwith %}
+</article>
