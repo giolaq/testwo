@@ -15,6 +15,9 @@ Scanned surface (R1, R5, R45)
   covers rendered HTML, accessible labels, empty states and page metadata;
 * all six supported endpoints, which covers JSON bodies and public JSON keys,
   including the 404 body of an unknown recipe lookup;
+* both pages in both modes and ``GET /api/rails`` a second time with a recipe
+  saved, because the saved accessible name and the populated My Cookbook rail
+  only exist on that branch and are squarely in scope for R1 and R5;
 * the template sources and the customer-visible static sources (stylesheet and
   ES modules);
 * the client fetch targets extracted from those ES modules;
@@ -37,17 +40,20 @@ Documented exclusions
   ``/movie/*``, ``/api/movies*`` and ``/api/watchlist*`` paths in order to prove
   they are gone.
 
-Matching is case-insensitive and boundary aware: a term only matches when it is
-not adjacent to a letter or a digit, so ``movie_ids``, ``movie-card`` and
-``#watchlist`` are reported while ``upcoming``, ``topcoat``, ``filmography``,
-``cinematography``, ``moviegoer`` and ``posterior`` are not.
+Matching is case-insensitive and boundary aware. A term never matches when a
+letter or a digit precedes it, and on the right an upper-case letter also counts
+as a boundary, so ``movie_ids``, ``movie-card``, ``#watchlist`` and the
+camelCase identifiers a partial rebrand leaves behind (``movieCard``,
+``watchlistToggle``, ``posterUrl``, ``filmTitle``, ``cinemaMode``) are all
+reported, while ``upcoming``, ``topcoat``, ``filmography``, ``cinematography``,
+``moviegoer`` and ``posterior`` are not.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterator
 
 DEMO_APP = Path(__file__).parents[1]
 
@@ -70,6 +76,7 @@ SCANNED_SURFACES: tuple[str, ...] = (
     "GET / and GET /recipe/<recipe_id> in mobile mode",
     "GET / and GET /recipe/<recipe_id> in TV mode",
     "the six supported JSON endpoints, their payload keys and the 404 body",
+    "both pages in both modes and GET /api/rails with a recipe saved",
     "the template sources",
     "the customer-visible static sources",
     "the client fetch targets",
@@ -111,11 +118,17 @@ CINEMA_ERA_DEPENDENCIES: tuple[str, ...] = (
     "detail.html",
 )
 
-# A term matches only when it is not glued to a letter or a digit. '_' and '-'
-# therefore act as boundaries, which is what catches a public key such as
-# movie_ids or a class hook such as movie-card.
+# A term matches only when it is not glued to a letter or a digit on the left,
+# so '_' and '-' act as boundaries and a public key such as movie_ids or a class
+# hook such as movie-card is reported. On the right the lookahead is compiled
+# case-sensitively - with (?-i:...) inside an otherwise case-insensitive pattern
+# - so an upper-case letter also ends a term. That is what makes the camelCase
+# identifiers a partial rebrand leaves behind (movieCard, watchlistToggle,
+# posterUrl, filmTitle, cinemaMode) fail the guard, while a lower-case
+# continuation still keeps innocent words such as filmography, cinematography,
+# moviegoer and posterior from blocking work.
 _LEFT = r"(?<![0-9A-Za-z])"
-_RIGHT = r"(?![0-9A-Za-z])"
+_RIGHT = r"(?-i:(?![0-9a-z]))"
 
 _EXCERPT_RADIUS = 40
 
@@ -199,15 +212,39 @@ def _require(response: Any, expected: int, surface: str) -> str:
     return response.get_data(as_text=True)
 
 
-def _page_surfaces(client: Any, recipe_id: str) -> Iterator[tuple[str, str]]:
+def _page_surfaces(
+    client: Any, recipe_id: str, note: str = ""
+) -> Iterator[tuple[str, str]]:
+    suffix = f", {note}" if note else ""
     for path, mode in (
         ("/", "mobile"),
         ("/?mode=tv", "tv"),
         (f"/recipe/{recipe_id}", "mobile"),
         (f"/recipe/{recipe_id}?mode=tv", "tv"),
     ):
-        surface = f"GET {path} ({mode})"
+        surface = f"GET {path} ({mode}{suffix})"
         yield surface, _require(client.get(path), 200, surface)
+
+
+def _saved_state_surfaces(client: Any, recipe_id: str) -> list[tuple[str, str]]:
+    """The same pages and rails payload, rendered with one recipe saved.
+
+    The saved accessible name ("Remove <title> from My Cookbook") and the
+    populated My Cookbook rail exist only on the saved branch, so scanning the
+    empty cookbook alone would leave that customer-visible output uncovered. The
+    recipe is removed again afterwards so the surface set stays deterministic and
+    the store is left exactly as it was found.
+    """
+    setup = "POST /api/cookbook (saved-state setup)"
+    _require(client.post("/api/cookbook", json={"id": recipe_id}), 201, setup)
+    try:
+        surfaces = list(_page_surfaces(client, recipe_id, note="saved"))
+        rails = "GET /api/rails (saved)"
+        surfaces.append((rails, _require(client.get("/api/rails"), 200, rails)))
+        return surfaces
+    finally:
+        teardown = f"DELETE /api/cookbook/{recipe_id} (saved-state teardown)"
+        _require(client.delete(f"/api/cookbook/{recipe_id}"), 200, teardown)
 
 
 def _endpoint_surfaces(client: Any, recipe_id: str) -> Iterator[tuple[str, str]]:
@@ -279,6 +316,7 @@ def collect_surfaces(client: Any) -> list[tuple[str, str]]:
     surfaces: list[tuple[str, str]] = []
     surfaces.extend(_page_surfaces(client, recipe_id))
     surfaces.extend(_endpoint_surfaces(client, recipe_id))
+    surfaces.extend(_saved_state_surfaces(client, recipe_id))
     surfaces.extend(_source_surfaces())
     surfaces.extend(_fetch_target_surfaces())
     surfaces.extend(_test_source_surfaces())
@@ -296,8 +334,3 @@ def json_keys(payload: Any, keys: set[str] | None = None) -> set[str]:
         for item in payload:
             json_keys(item, found)
     return found
-
-
-def iter_terms() -> Iterable[str]:
-    """The vocabulary, for tests that report per-term coverage."""
-    return PROHIBITED_TERMS

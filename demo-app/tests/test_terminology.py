@@ -44,6 +44,12 @@ EXPECTED_SURFACE_MARKERS = (
     "DELETE /api/cookbook/",
     "GET /api/rails",
     "404 body",
+    # The saved branch renders the "Remove <title> from My Cookbook" accessible
+    # name and the populated My Cookbook rail, so it must be scanned too.
+    "GET / (mobile, saved)",
+    "GET /?mode=tv (tv, saved)",
+    "?mode=tv (tv, saved)",
+    "GET /api/rails (saved)",
     "source templates/browse.html",
     "source templates/tv_browse.html",
     "source static/styles.css",
@@ -83,6 +89,35 @@ def test_guard_covers_both_modes_both_pages_and_all_six_endpoints(client):
     assert "recipes.json" not in labels, (
         "internal non-public filenames are out of scope per R5"
     )
+
+
+def test_the_saved_state_branch_is_actually_scanned(client):
+    """The saved accessible name and populated cookbook rail are covered.
+
+    A saved-state pass that rendered the empty cookbook again would satisfy the
+    surface labels while leaving the branch unscanned, so this asserts the text
+    really differs: the saved control label and the saved recipe both appear.
+    """
+    recipe_id = first_recipe_id()
+    surfaces = dict(collect_surfaces(client))
+
+    saved_page = surfaces["GET / (mobile, saved)"]
+    assert "Remove " in saved_page and "from My Cookbook" in saved_page, (
+        "the saved-state pass must render the saved accessible name, which is "
+        "only produced when the cookbook is not empty"
+    )
+    assert "Add " in surfaces["GET / (mobile)"]
+
+    saved_rails = json.loads(surfaces["GET /api/rails (saved)"])
+    cookbook = [rail for rail in saved_rails if rail["name"] == "My Cookbook"]
+    assert cookbook and cookbook[0]["recipe_ids"] == [recipe_id], (
+        "the saved-state pass must render a populated My Cookbook rail"
+    )
+    empty_rails = json.loads(surfaces["GET /api/rails"])
+    assert [r for r in empty_rails if r["name"] == "My Cookbook"][0]["recipe_ids"] == []
+
+    # The store is left exactly as it was found, so the guard stays deterministic.
+    assert client.get("/api/cookbook").get_json() == []
 
 
 def test_public_json_keys_and_the_404_body_are_recipe_domain(client):
@@ -149,6 +184,14 @@ def test_the_pattern_is_the_single_frozen_vocabulary():
         "#watchlist",
         '{"movie_ids": []}',
         "--paper-poster",
+        # An upper-case letter ends a term too, so the camelCase identifiers a
+        # partial rebrand leaves behind in the client modules or a class hook
+        # cannot slip past the boundary.
+        "movieCard",
+        "watchlistToggle",
+        "posterUrl",
+        "filmTitle",
+        "cinemaMode",
     ):
         assert pattern.search(marked_up), f"the pattern must match {marked_up!r}"
 
