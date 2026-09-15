@@ -10,11 +10,12 @@ View-mode seam
 Both routes resolve the view mode through the single resolver in view_mode.py and
 build every in-app href through ``mode_url``, so TV mode is retained across
 navigation from one implementation. GET / selects the TV rails template when the
-resolved mode is TV.
+resolved mode is TV, and GET /recipe/<recipe_id> selects the TV detail template,
+so both routes serve both modes from the one resolver.
 
-The detail route still renders the mobile detail template in both modes:
-T-TVDETAIL owns TV detail template selection, so no intermediate state points at
-a template that does not exist yet.
+Both detail templates are rendered from the same ``detail_context`` payload, so
+the mobile and TV recipe pages differ only in presentation and can never
+disagree about an attribute, the ingredient order or the saved state.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ BROWSE_PATH = "/"
 BROWSE_TEMPLATE = "browse.html"
 TV_BROWSE_TEMPLATE = "tv_browse.html"
 DETAIL_TEMPLATE = "recipe.html"
+TV_DETAIL_TEMPLATE = "tv_recipe.html"
 
 BRAND_NAME = "TableStory"
 TAGLINE = "Good food, clearly told."
@@ -189,8 +191,8 @@ def register_pages(
         recipe = collection.by_id.get(recipe_id)
         if recipe is None:
             abort(404)
-        # The mobile detail template serves both modes for now; T-TVDETAIL owns
-        # TV detail template selection.
+        view_mode = current_view_mode()
+        template = TV_DETAIL_TEMPLATE if is_tv(view_mode) else DETAIL_TEMPLATE
         return render_template(
-            DETAIL_TEMPLATE, **detail_context(recipe, store, current_view_mode())
+            template, **detail_context(recipe, store, view_mode)
         )

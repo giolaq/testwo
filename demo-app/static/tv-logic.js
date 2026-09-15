@@ -1,9 +1,10 @@
-// The pure TV focus model: dependency-free, DOM-free and total.
+// The pure TV interaction model: dependency-free, DOM-free and total.
 //
 // Every transition is a pure function of the previous focus state, the rendered
-// per-rail card counts and the key name, which is what makes remote navigation
-// verifiable offline under `node --test`. The DOM binding in tv-browse.js only
-// applies what these functions decide.
+// per-rail card counts (browse) or action count (detail) and the key name, which
+// is what makes remote navigation verifiable offline under `node --test`. The DOM
+// bindings in tv-browse.js and tv-detail.js only apply what these functions
+// decide.
 
 /**
  * Keep an index inside a rail of `count` cards.
@@ -62,4 +63,43 @@ export function nextFocus(state, railCounts, key) {
   }
 
   return unchanged;
+}
+
+/**
+ * The TV detail action model: one key against the ordered action list.
+ *
+ * The rendered actions are the back action at index 0 and the My Cookbook
+ * control at index 1, so `actionCount` is normally 2.
+ *
+ * ArrowUp and ArrowDown move between the actions and clamp at both ends, so a
+ * held remote key never addresses a missing action. Enter yields 'activate' on
+ * whichever action holds focus. Escape and Backspace both yield 'back', because
+ * remotes send either one for the same physical button. Every other key - a
+ * horizontal arrow in this vertical list, a media key, a lower-case key name -
+ * yields 'none' with the focus index unchanged, so a stray remote key never
+ * navigates away from the recipe.
+ */
+export function resolveDetailKey(key, focusIndex, actionCount) {
+  const count = Number.isFinite(actionCount) ? Math.trunc(actionCount) : 0;
+  const current = Number.isFinite(focusIndex) ? Math.trunc(focusIndex) : 0;
+
+  if (key === 'ArrowUp' || key === 'ArrowDown') {
+    const step = key === 'ArrowDown' ? 1 : -1;
+    // Clamp the incoming index first, so a move from an out-of-range index still
+    // lands on an existing action rather than drifting further out.
+    return {
+      focusIndex: clampIndex(clampIndex(current, count) + step, count),
+      action: 'none',
+    };
+  }
+
+  if (key === 'Enter') {
+    return {focusIndex: current, action: 'activate'};
+  }
+
+  if (key === 'Escape' || key === 'Backspace') {
+    return {focusIndex: current, action: 'back'};
+  }
+
+  return {focusIndex: current, action: 'none'};
 }
